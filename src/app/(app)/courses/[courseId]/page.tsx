@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AssignmentList } from "@/components/assignment/assignment-list";
 import { AiNotice } from "@/components/course/ai-notice";
 import { JoinCodePanel } from "@/components/course/join-code-panel";
+import { SubmissionStatusBadge } from "@/components/submission/submission-status-badge";
 import { PaginationNav } from "@/components/layout/pagination-nav";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { can, isStaff } from "@/server/authz/policy";
 import { db } from "@/server/db";
 import { listAssignments } from "@/server/services/assignment.service";
 import { countMembersByRole } from "@/server/services/course.service";
+import { countSubmissions, getOwnSubmissionStatuses } from "@/server/services/submission.service";
 
 export async function generateMetadata({
   params,
@@ -26,12 +28,18 @@ export default async function CourseOverviewPage({
   params,
   searchParams,
 }: PageProps<"/courses/[courseId]">) {
-  const { course, member, state } = await loadCourseForMember((await params).courseId);
+  const { user, course, member, state } = await loadCourseForMember((await params).courseId);
   const staff = isStaff(member.role);
   const pageRequest = parsePage((await searchParams).page, 20);
   const [counts, assignments] = await Promise.all([
     staff ? countMembersByRole(db, course.id) : null,
     listAssignments(db, course.id, { includeDrafts: staff }, pageRequest),
+  ]);
+  const ids = assignments.items.map((a) => a.id);
+  // One batched query for the whole page: counts for staff, own status for students.
+  const [submissionCounts, ownStatuses] = await Promise.all([
+    staff ? countSubmissions(db, ids) : null,
+    staff ? null : getOwnSubmissionStatuses(db, user.id, ids),
   ]);
   const canCreate = can(member, "assignment:create", { course: state });
 
@@ -68,6 +76,16 @@ export default async function CourseOverviewPage({
         <AssignmentList
           courseId={course.id}
           items={assignments.items}
+          renderMeta={(a) => {
+            if (ownStatuses) return <SubmissionStatusBadge own={ownStatuses.get(a.id)} />;
+            if (a.status === "DRAFT") return null;
+            const c = submissionCounts?.get(a.id);
+            return (
+              <span className="text-sm text-muted-foreground">
+                {c?.submitted ?? 0} submitted{c?.late ? ` (${c.late} late)` : ""}
+              </span>
+            );
+          }}
           emptyTitle="No assignments yet"
           emptyHint={
             canCreate
