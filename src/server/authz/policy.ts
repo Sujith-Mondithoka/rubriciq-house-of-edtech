@@ -24,8 +24,10 @@ type WithCourse<T = object> = { course: CourseState } & T;
 
 /** The resource state each action needs. The course is always the one owning the resource. */
 export type PolicyResources = {
-  /** See the course, its published assignments and the member list. */
+  /** See the course and its published assignments. */
   "course:view": WithCourse;
+  /** See the member list (names and emails), so staff only. */
+  "course:viewMembers": WithCourse;
   /** Edit or archive the course, regenerate the join code, toggle AI. */
   "course:manage": WithCourse;
   /** Add/remove TAs, remove students. */
@@ -86,6 +88,7 @@ const writable = (r: { course: CourseState }) => !r.course.archived;
 
 const rules: { [A in Action]: Rule<A> } = {
   "course:view": () => true,
+  "course:viewMembers": (m) => isStaff(m.role),
   "course:manage": (m, r) => isInstructor(m) && writable(r),
   "course:manageMembers": (m, r) => isInstructor(m) && writable(r),
 

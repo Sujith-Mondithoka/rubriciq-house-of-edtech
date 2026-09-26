@@ -24,6 +24,7 @@ const archivedCourse = { archived: true, aiEnabled: true };
 /** A resource in which the action is allowed for someone, so only the role decides. */
 const allowed: { [A in Action]: PolicyResources[A] } = {
   "course:view": { course },
+  "course:viewMembers": { course },
   "course:manage": { course },
   "course:manageMembers": { course },
   "assignment:create": { course },
@@ -76,7 +77,8 @@ const table: [row: string, actions: Action[], expected: Expected][] = [
     ["assignment:delete", "rubric:edit"],
     [true, false, false],
   ],
-  ["View the course and its members", ["course:view"], [true, true, true]],
+  ["View the course", ["course:view"], [true, true, true]],
+  ["View the member list", ["course:viewMembers"], [true, true, false]],
   ["View published assignment + rubric", ["assignment:view"], [true, true, true]],
   [
     "Create/edit own submission (until deadline); delete own unsubmitted draft",
@@ -127,6 +129,7 @@ describe("non-members", () => {
 describe("archived courses are read-only", () => {
   const readActions: Action[] = [
     "course:view",
+    "course:viewMembers",
     "assignment:view",
     "submission:view",
     "submission:viewAll",
