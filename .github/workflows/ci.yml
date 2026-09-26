@@ -153,9 +153,10 @@ jobs:
       - name: Build
         run: pnpm build
 
-      # Global setup seeds the demo data; tests run on desktop and at 360 px, with axe checks.
-      - name: End-to-end tests
-        run: pnpm test:e2e
+      # Global setup seeds the demo data. CI runs the desktop project (with axe checks) to keep
+      # the job short; the 360 px project runs locally before every merge (pnpm test:e2e).
+      - name: End-to-end tests (desktop)
+        run: pnpm test:e2e --project=desktop
 
       - name: Upload traces and screenshots
         if: failure() || cancelled()
