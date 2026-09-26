@@ -1,7 +1,9 @@
 import { cn } from "cn";
+import { InboxIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { EmptyState } from "@/components/common/empty-state";
 import { LocalDateTime } from "@/components/common/local-date-time";
 import { AiDraftButton } from "@/components/grading/ai-draft-button";
 import { aiFailureReason, AiRunBadge } from "@/components/grading/ai-run-status";
@@ -96,15 +98,25 @@ export default async function GradingQueuePage({ params, searchParams }: Props) 
 
   return (
     <div className="grid gap-6">
-      <header className="grid gap-2">
+      <header className="grid gap-3">
         <Link
           href={base}
-          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+          className="w-fit text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
         >
           ← {assignment.title}
         </Link>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold">Grading queue</h2>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="grid gap-1">
+            <h2 className="page-title">Grading queue</h2>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              {canRelease
+                ? "Grade each submission, then release reviewed grades to students."
+                : "Grade each submission. The instructor releases grades to students."}
+              {canUseAi
+                ? " AI drafts are suggestions: open each one, check it, and save it before release."
+                : ""}
+            </p>
+          </div>
           <div className="flex flex-wrap gap-2">
             {canUseAi && counts.SUBMITTED > 0 ? (
               <AiDraftButton
@@ -122,21 +134,13 @@ export default async function GradingQueuePage({ params, searchParams }: Props) 
             ) : null}
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {canRelease
-            ? "Grade each submission, then release reviewed grades to students."
-            : "Grade each submission. The instructor releases grades to students."}
-          {canUseAi
-            ? " AI drafts are suggestions: open each one, check it, and save it before release."
-            : ""}
-        </p>
         {anyPending ? (
           <AutoRefresh label="AI drafts are running. This list updates by itself." />
         ) : null}
       </header>
 
-      <nav aria-label="Filter by status" className="-mx-1 overflow-x-auto">
-        <ul className="flex gap-1 border-b">
+      <nav aria-label="Filter by status" className="-mx-1 overflow-x-auto px-1 pb-1">
+        <ul className="flex w-max gap-1 rounded-lg bg-muted p-1">
           {tabs.map((t) => {
             const active = t.status === filter;
             return (
@@ -145,13 +149,13 @@ export default async function GradingQueuePage({ params, searchParams }: Props) 
                   href={hrefFor(t.status)}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "-mb-px inline-flex h-10 items-center gap-1 border-b-2 px-3 text-sm font-medium whitespace-nowrap outline-none focus-visible:rounded-md focus-visible:ring-3 focus-visible:ring-ring/50",
+                    "inline-flex h-8 items-center gap-1 rounded-md px-3 text-sm whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                     active
-                      ? "border-foreground text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground",
+                      ? "bg-card font-medium text-foreground shadow-sm"
+                      : "text-foreground/75 hover:text-foreground",
                   )}
                 >
-                  {t.label} <span className="text-muted-foreground">({t.n})</span>
+                  {t.label} <span className="text-muted-foreground tabular-nums">({t.n})</span>
                 </Link>
               </li>
             );
@@ -160,63 +164,104 @@ export default async function GradingQueuePage({ params, searchParams }: Props) 
       </nav>
 
       {queue.items.length ? (
-        <ul className="divide-y rounded-xl border" aria-label="Students">
-          {queue.items.map((item) => (
-            <li
-              key={item.studentId}
-              className="grid gap-2 p-4 sm:grid-cols-[1fr_auto] sm:items-center"
-            >
-              <div className="grid gap-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium break-words">{item.name}</span>
-                  <QueueStatusBadge status={item.status} />
-                  {runFor(item) ? <AiRunBadge run={runFor(item)!} /> : null}
-                  {item.isLate ? <span className="text-sm text-destructive">Late</span> : null}
-                </div>
-                {runFor(item)?.status === "FAILED" ? (
-                  <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span>
-                      AI draft failed because {aiFailureReason(runFor(item)!.errorCode)}. Retry or
-                      grade manually.
+        <div className="card-surface overflow-hidden">
+          <div
+            aria-hidden
+            className="hidden grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1fr)_7rem] gap-4 border-b bg-muted/50 px-4 py-2 text-xs font-medium text-muted-foreground md:grid"
+          >
+            <span>Student</span>
+            <span>Status</span>
+            <span>Score</span>
+            <span className="text-right">Action</span>
+          </div>
+          <ul className="divide-y" aria-label="Students">
+            {queue.items.map((item) => {
+              const run = runFor(item);
+              const needsWork = item.status === "SUBMITTED" || item.status === "AI_DRAFTED";
+              return (
+                <li
+                  key={item.studentId}
+                  className="grid gap-3 px-4 py-3.5 md:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1fr)_7rem] md:items-center md:gap-4"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      aria-hidden
+                      className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-xs font-semibold text-accent-foreground"
+                    >
+                      {initials(item.name)}
                     </span>
-                    <AiDraftButton
-                      assignmentId={assignment.id}
-                      submissionIds={[item.submissionId!]}
-                      label="Retry"
-                      ariaLabel={`Retry AI draft for ${item.name}`}
-                      action={generateAiDraftsAction}
-                    />
+                    <div className="grid min-w-0">
+                      <span className="truncate font-medium">{item.name}</span>
+                      <span className="truncate text-sm text-muted-foreground">
+                        {item.submittedAt ? (
+                          <>
+                            Submitted <LocalDateTime iso={item.submittedAt.toISOString()} /> ·{" "}
+                            {item.wordCount} words
+                          </>
+                        ) : (
+                          item.email
+                        )}
+                      </span>
+                    </div>
                   </div>
-                ) : null}
-                <p className="text-sm break-all text-muted-foreground">{item.email}</p>
-                {item.submittedAt ? (
-                  <p className="text-sm text-muted-foreground">
-                    Submitted <LocalDateTime iso={item.submittedAt.toISOString()} /> ·{" "}
-                    {item.wordCount} words
-                    {item.totalScore !== null
-                      ? ` · ${item.totalScore} / ${assignment.maxScore} points`
-                      : ""}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <QueueStatusBadge status={item.status} />
+                    {run ? <AiRunBadge run={run} /> : null}
+                    {item.isLate ? (
+                      <span className="inline-flex h-6 items-center rounded-full bg-destructive/10 px-2.5 text-xs font-medium text-destructive">
+                        Late
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="text-sm tabular-nums">
+                    {item.totalScore !== null ? (
+                      <>
+                        <span className="font-medium">{item.totalScore}</span>
+                        <span className="text-muted-foreground">
+                          {" "}
+                          / {assignment.maxScore} points
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground md:hidden">No score yet</span>
+                    )}
                   </p>
-                ) : null}
-              </div>
-              {item.submissionId ? (
-                <Button asChild variant={item.status === "SUBMITTED" ? "default" : "outline"}>
-                  <Link
-                    href={`${base}/submissions/${item.submissionId}`}
-                    aria-label={`${item.status === "RELEASED" ? "View" : "Grade"} ${item.name}`}
-                  >
-                    {item.status === "RELEASED" ? "View" : "Grade"}
-                  </Link>
-                </Button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className="rounded-xl border border-dashed p-8 text-center">
-          <p className="font-medium">Nothing here</p>
-          <p className="mt-1 text-sm text-muted-foreground">{EMPTY[filter ?? "ALL"]}</p>
+                  <div className="flex md:justify-end">
+                    {item.submissionId ? (
+                      <Button asChild size="lg" variant={needsWork ? "default" : "outline"}>
+                        <Link
+                          href={`${base}/submissions/${item.submissionId}`}
+                          aria-label={`${item.status === "RELEASED" ? "View" : "Grade"} ${item.name}`}
+                        >
+                          {item.status === "RELEASED" ? "View" : "Grade"}
+                        </Link>
+                      </Button>
+                    ) : null}
+                  </div>
+                  {run?.status === "FAILED" ? (
+                    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-destructive/5 px-3 py-2 text-sm md:col-span-4">
+                      <span>
+                        AI draft failed because {aiFailureReason(run.errorCode)}. Retry or grade
+                        manually.
+                      </span>
+                      <AiDraftButton
+                        assignmentId={assignment.id}
+                        submissionIds={[item.submissionId!]}
+                        label="Retry"
+                        ariaLabel={`Retry AI draft for ${item.name}`}
+                        action={generateAiDraftsAction}
+                      />
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
         </div>
+      ) : (
+        <EmptyState icon={InboxIcon} title="Nothing here">
+          {EMPTY[filter ?? "ALL"]}
+        </EmptyState>
       )}
 
       <PaginationNav
@@ -227,4 +272,12 @@ export default async function GradingQueuePage({ params, searchParams }: Props) 
       />
     </div>
   );
+}
+
+function initials(name: string) {
+  const parts = name
+    .replace(/\(.*?\)/g, "")
+    .trim()
+    .split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
 }
