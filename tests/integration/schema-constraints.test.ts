@@ -22,7 +22,9 @@ import {
 import { createTestDb, expectPgError, truncateAll } from "./helpers/test-db";
 
 const UNIQUE_VIOLATION = "23505";
-const FOREIGN_KEY_VIOLATION = "23503";
+// ON DELETE RESTRICT: Postgres 17 reports foreign_key_violation (23503),
+// Postgres 18 reports restrict_violation (23001).
+const RESTRICT_VIOLATION = ["23503", "23001"] as const;
 const CHECK_VIOLATION = "23514";
 
 const { db, pool } = createTestDb();
@@ -82,7 +84,7 @@ describe("database constraints", () => {
 
     await expectPgError(
       db.delete(assignment).where(eq(assignment.id, draft.id)),
-      FOREIGN_KEY_VIOLATION,
+      RESTRICT_VIOLATION,
     );
   });
 
@@ -142,9 +144,6 @@ describe("database constraints", () => {
     const sub = await createSubmission(db, draft.id, student.id);
     await db.insert(grade).values({ submissionId: sub.id });
 
-    await expectPgError(
-      db.delete(submission).where(eq(submission.id, sub.id)),
-      FOREIGN_KEY_VIOLATION,
-    );
+    await expectPgError(db.delete(submission).where(eq(submission.id, sub.id)), RESTRICT_VIOLATION);
   });
 });

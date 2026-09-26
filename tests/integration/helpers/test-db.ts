@@ -48,18 +48,23 @@ export function createTestDb() {
   return createDb(getTestDatabaseUrl(), { max: 2 });
 }
 
-/** Asserts that a query failed with a specific Postgres error code (e.g. 23505). */
-export async function expectPgError(promise: Promise<unknown>, code: string) {
+/** Asserts that a query failed with one of the given Postgres error codes (e.g. 23505). */
+export async function expectPgError(promise: Promise<unknown>, codes: string | readonly string[]) {
+  const expected = typeof codes === "string" ? [codes] : codes;
   let error: unknown;
   try {
     await promise;
   } catch (caught) {
     error = caught;
   }
-  if (!error) throw new Error(`Expected Postgres error ${code}, but the query succeeded`);
+  if (!error) {
+    throw new Error(`Expected Postgres error ${expected.join("/")}, but the query succeeded`);
+  }
   const pgCode =
     (error as { code?: string }).code ?? (error as { cause?: { code?: string } }).cause?.code;
-  if (pgCode !== code) {
-    throw new Error(`Expected Postgres error ${code}, got ${pgCode ?? "none"}: ${String(error)}`);
+  if (!pgCode || !expected.includes(pgCode)) {
+    throw new Error(
+      `Expected Postgres error ${expected.join("/")}, got ${pgCode ?? "none"}: ${String(error)}`,
+    );
   }
 }
