@@ -65,6 +65,44 @@ test("AI drafts a grade; the instructor overrides it and releases; the student s
   await expect(page.getByText(/AI suggestion|confidence|Evidence/i)).toHaveCount(0);
 });
 
+test("a teacher accepts an AI draft unchanged, releases it, and the student sees it", async ({
+  page,
+}) => {
+  // 25–79 words: the mock picks the middle level (Developing · 5 points).
+  const answer =
+    "Peer feedback showed me that I bury my claims under quotations. In my next draft I will open every paragraph with my own sentence, then add one source, then explain how that source supports the claim I made.";
+  const { assignmentUrl, queueUrl } = await submittedAssignment(page, "E2E AI accept", answer);
+
+  await signInAsDemo(page, "Instructor");
+  await page.goto(queueUrl);
+  await page.getByRole("button", { name: "Generate AI drafts" }).click();
+  await expect(page.getByRole("link", { name: "AI drafted (1)" })).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("link", { name: `Grade ${STUDENT}` }).click();
+
+  // Not reviewed yet: it can be accepted as-is, but not released.
+  await expect(page.getByRole("radio", { name: /Developing · 5 points/ })).toBeChecked();
+  const accept = page.getByRole("button", { name: "Accept and save" });
+  await expect(accept).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Release grade" })).toBeDisabled();
+  await expect(page.getByText("Accept and save the AI draft before releasing.")).toBeVisible();
+
+  await accept.click();
+  await expect(page.getByText("Grade saved (5 / 10)")).toBeVisible();
+  // Reviewed now: the usual rules apply again.
+  await expect(page.getByRole("button", { name: "Save grade" })).toBeDisabled();
+  await expect(page.getByText("AI suggestion", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Release grade" }).click();
+  await confirmDialog(page, "Release grade");
+  await expect(page.getByText("Grade released", { exact: true })).toBeVisible();
+
+  await signInAsDemo(page, "Student");
+  await page.goto(assignmentUrl);
+  await expect(page.getByText("5 / 10", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Mock feedback on Insight/)).toBeVisible();
+  await expect(page.getByText(/AI suggestion|confidence|Evidence/i)).toHaveCount(0);
+});
+
 test("an AI failure shows Retry, and manual grading still works; AI off hides AI", async ({
   page,
 }) => {
