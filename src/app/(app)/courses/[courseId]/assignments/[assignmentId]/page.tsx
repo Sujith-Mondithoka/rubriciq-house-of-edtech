@@ -6,6 +6,7 @@ import { AssignmentStatusBadge } from "@/components/assignment/assignment-status
 import { RubricView } from "@/components/assignment/rubric-view";
 import { LocalDateTime } from "@/components/common/local-date-time";
 import { AiNotice } from "@/components/course/ai-notice";
+import { GradeView } from "@/components/grading/grade-view";
 import { SubmissionEditor } from "@/components/submission/submission-editor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import { loadAssignmentForMember } from "@/server/authz/load-course";
 import { can, isStaff } from "@/server/authz/policy";
 import { db } from "@/server/db";
 import { getRubric } from "@/server/services/assignment.service";
+import { getReleasedGrade, hasGrade } from "@/server/services/grade.service";
 import { countSubmissions, getOwnSubmission } from "@/server/services/submission.service";
 
 type Props = PageProps<"/courses/[courseId]/assignments/[assignmentId]">;
@@ -49,6 +51,18 @@ export default async function AssignmentPage({ params }: Props) {
     staff ? null : getOwnSubmission(db, assignment.id, user.id),
   ]);
   const summary = counts?.get(assignment.id) ?? { submitted: 0, late: 0, drafts: 0 };
+  // The student sees a grade only once it is released; a draft grade just freezes their work.
+  const ownSubmitted = own?.status === "SUBMITTED" ? own : null;
+  const [released, gradingStarted] = ownSubmitted
+    ? await Promise.all([getReleasedGrade(db, ownSubmitted.id), hasGrade(db, ownSubmitted.id)])
+    : [null, false];
+  const canViewGrade =
+    released !== null &&
+    can(member, "grade:view", {
+      course: state,
+      submission: { studentId: user.id },
+      grade: { status: "RELEASED" },
+    });
 
   const canUpdate = can(member, "assignment:update", { course: state, assignment: status });
   const canEditRubric = can(member, "rubric:edit", { course: state, assignment: status });
@@ -56,12 +70,14 @@ export default async function AssignmentPage({ params }: Props) {
     course: state,
     assignment: { ...status, hasSubmissions: summary.submitted + summary.drafts > 0 },
   });
-  const canWrite = can(member, "submission:write", {
-    course: state,
-    assignment: { ...status, dueAt: assignment.dueAt, allowLate: assignment.allowLate },
-    submission: own ? { studentId: user.id } : null,
-    now,
-  });
+  const canWrite =
+    !gradingStarted &&
+    can(member, "submission:write", {
+      course: state,
+      assignment: { ...status, dueAt: assignment.dueAt, allowLate: assignment.allowLate },
+      submission: own ? { studentId: user.id } : null,
+      now,
+    });
   const pastDue = isLate(now, assignment.dueAt);
   const base = `/courses/${courseId}/assignments/${assignment.id}`;
 
@@ -112,9 +128,14 @@ export default async function AssignmentPage({ params }: Props) {
 
       {staff && assignment.status !== "DRAFT" ? (
         <section aria-labelledby="submissions-summary-heading" className="grid gap-3">
-          <h3 id="submissions-summary-heading" className="font-medium">
-            Submissions
-          </h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 id="submissions-summary-heading" className="font-medium">
+              Submissions
+            </h3>
+            <Button asChild size="lg">
+              <Link href={`${base}/submissions`}>Open grading queue</Link>
+            </Button>
+          </div>
           <dl className="grid grid-cols-3 gap-3 text-center">
             {(
               [
@@ -150,6 +171,21 @@ export default async function AssignmentPage({ params }: Props) {
         <RubricView criteria={criteria} maxScore={assignment.maxScore} />
       </section>
 
+      {!staff && ownSubmitted ? (
+        <section aria-labelledby="grade-heading" className="grid gap-3">
+          <h3 id="grade-heading" className="text-lg font-medium">
+            Your grade
+          </h3>
+          {canViewGrade && released ? (
+            <GradeView criteria={criteria} grade={released} maxScore={assignment.maxScore} />
+          ) : (
+            <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+              Not released yet. Your grade and feedback appear here once your teacher releases them.
+            </p>
+          )}
+        </section>
+      ) : null}
+
       {!staff ? (
         <section aria-labelledby="submission-heading" className="grid gap-4">
           <h3 id="submission-heading" className="text-lg font-medium">
@@ -182,7 +218,9 @@ export default async function AssignmentPage({ params }: Props) {
                   ? "This course is archived."
                   : assignment.status === "CLOSED"
                     ? "This assignment is closed."
-                    : "The deadline has passed."
+                    : gradingStarted
+                      ? "Grading has started."
+                      : "The deadline has passed."
               }
             />
           )}

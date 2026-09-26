@@ -17,6 +17,8 @@ Permanent rules live in `/CLAUDE.md`. This document is the detailed plan behind 
 8. Commits: small logical commits that each build; one branch + one PR per phase, merged when CI passes.
 9. Hard delete where safe (with UI confirmation): DRAFT assignment with no submissions; rubric
    criteria/levels while DRAFT; a student's own unsubmitted draft.
+10. Phase 11 protects the demo course (see §6b), and the daily demo reset cron moves from
+    Phase 12 into Phase 11.
 
 ---
 
@@ -187,6 +189,30 @@ resource)` → otherwise `FORBIDDEN`.
 - Rate limits on sign-in and sign-up (IP + email) and on AI actions (Upstash).
 - Demo accounts are seeded and reset daily by the cron job.
 
+## 6b. Demo course protection (Phase 11)
+
+The seeded demo course is shared by every reviewer, so one visitor must not be able to break it
+for the next.
+
+- **Blocked for demo accounts on the demo course:** archiving it, removing its members (TAs or
+  students), deleting its assignments, and changing its settings (name/description, join code,
+  AI on/off).
+- **Enforced on the server:** a single check (`isProtectedDemoCourse(course)` + demo user id) in
+  the course/assignment handlers returns `FORBIDDEN` with the message "Disabled in the demo".
+  The UI is not the safeguard.
+- **Shown in the UI:** the affected buttons and switches are disabled with the visible text
+  "Disabled in the demo" (not colour alone, linked with `aria-describedby`).
+- **Still allowed:** everything a reviewer needs to try the product in the demo course — create
+  assignments and rubrics, submit, grade, run AI drafts, release, regrade — plus full control of
+  any course a demo account creates itself.
+- **Daily reset cron:** `vercel.json` schedules `/api/cron/reset-demo` once a day (Hobby limit).
+  The route checks `Authorization: Bearer ${CRON_SECRET}` (constant-time compare), then runs
+  `resetDemoData()`, which deletes and recreates only rows owned by the fixed demo user ids.
+  It returns the seed summary and logs failures with a request id.
+- **Tests:** integration tests for each blocked action (demo account → `FORBIDDEN`, same action on
+  its own course → allowed, non-demo instructor unaffected); a unit test for the cron secret
+  check; E2E shows "Disabled in the demo" on the settings page.
+
 ## 7. Validation and cleaning
 
 - `.strict()` Zod schemas on every action and route handler, shared with the forms (react-hook-form).
@@ -281,21 +307,21 @@ course."
 
 ## 11. Build phases
 
-| #   | Phase                                                                                                    | Done when                                        |
-| --- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| 0   | Next 16 + strict TS + Tailwind + shadcn + ESLint/Prettier + Vitest + footer + basic CI; deploy to Vercel | Live URL with footer; CI green                   |
-| 1   | Drizzle + Neon, full schema, migrations, seed                                                            | `db:migrate` + `db:seed` work locally and in CI  |
-| 2   | Better Auth, `proxy.ts`, `requireUser`, demo login                                                       | Sign in works in production                      |
-| 3   | `policy.ts` + unit tests                                                                                 | Permission table passes as tests                 |
-| 4   | Courses: create, join by code, members, add TA, archive, AI toggle                                       | Cross-course access tests pass                   |
-| 5   | Assignments CRUD, rubric builder, publish/close, rubric lock, safe hard deletes                          | Validation, lock and delete-condition tests pass |
-| 6   | Submissions: autosaved draft, submit, deadline/late, delete own draft, AI notice                         | Journey B through submit works                   |
-| 7   | Manual grading: queue, split view, save with optimistic lock, release, student grade view                | Journey C works without AI                       |
-| 8   | AI: provider switch, Gemini + mock, postprocess, runs, bulk, retry, cap, stale sweep                     | AI integration tests pass                        |
-| 9   | Regrade requests + audit log                                                                             | Journey E works                                  |
-| 10  | Analytics page                                                                                           | Correct numbers on seeded data                   |
-| 11  | Hardening: rate limits, CSP, error boundaries, loading/empty states, a11y pass                           | No serious axe issues                            |
-| 12  | Full Playwright suite in CI, README (architecture, security, contingency), demo reset cron               | CI green; README complete                        |
+| #   | Phase                                                                                                                                                       | Done when                                                                |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 0   | Next 16 + strict TS + Tailwind + shadcn + ESLint/Prettier + Vitest + footer + basic CI; deploy to Vercel                                                    | Live URL with footer; CI green                                           |
+| 1   | Drizzle + Neon, full schema, migrations, seed                                                                                                               | `db:migrate` + `db:seed` work locally and in CI                          |
+| 2   | Better Auth, `proxy.ts`, `requireUser`, demo login                                                                                                          | Sign in works in production                                              |
+| 3   | `policy.ts` + unit tests                                                                                                                                    | Permission table passes as tests                                         |
+| 4   | Courses: create, join by code, members, add TA, archive, AI toggle                                                                                          | Cross-course access tests pass                                           |
+| 5   | Assignments CRUD, rubric builder, publish/close, rubric lock, safe hard deletes                                                                             | Validation, lock and delete-condition tests pass                         |
+| 6   | Submissions: autosaved draft, submit, deadline/late, delete own draft, AI notice                                                                            | Journey B through submit works                                           |
+| 7   | Manual grading: queue, split view, save with optimistic lock, release, student grade view                                                                   | Journey C works without AI                                               |
+| 8   | AI: provider switch, Gemini + mock, postprocess, runs, bulk, retry, cap, stale sweep                                                                        | AI integration tests pass                                                |
+| 9   | Regrade requests + audit log                                                                                                                                | Journey E works                                                          |
+| 10  | Analytics page                                                                                                                                              | Correct numbers on seeded data                                           |
+| 11  | Hardening: rate limits, CSP, error boundaries, loading/empty states, a11y pass; demo course protection ("Disabled in the demo", §6b); daily demo reset cron | No serious axe issues; demo protection tests pass; cron resets demo data |
+| 12  | Full Playwright suite in CI, README (architecture, security, contingency)                                                                                   | CI green; README complete                                                |
 
 Cut order under time pressure: Phase 10, then Phase 9. The audit log for grade changes and
 releases moves into Phase 7 if Phase 9 is cut.
@@ -317,3 +343,5 @@ releases moves into Phase 7 if Phase 9 is cut.
 12. Scope is large for a one-day deadline; rely on the cut order.
 13. Demo sign-in runs in a Server Action, which bypasses Better Auth's HTTP rate limiter; repeated
     clicks can create many demo sessions. Covered by the Phase 11 rate limit on actions.
+14. The grading queue lists current students of the course; work from a student who was removed
+    after submitting stays in the database but no longer appears in the queue.

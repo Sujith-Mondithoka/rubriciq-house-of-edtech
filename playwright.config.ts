@@ -5,10 +5,11 @@ const PORT = Number(process.env.E2E_PORT ?? 3100);
 /**
  * End-to-end tests run against a production build (`pnpm build` first) and a seeded database.
  * They sign in with the demo accounts, so everything they create is owned by demo users and
- * removed by the next demo reset.
+ * removed by the demo reset that runs before each test run (global-setup.ts).
  */
 export default defineConfig({
   testDir: "tests/e2e",
+  globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
