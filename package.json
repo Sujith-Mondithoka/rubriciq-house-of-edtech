@@ -17,6 +17,7 @@
     "test:watch": "vitest --project unit --project components",
     "test:integration": "vitest run --project integration",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",
     "db:migrate": "tsx scripts/migrate.ts",
@@ -43,6 +44,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
