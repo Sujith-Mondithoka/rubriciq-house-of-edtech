@@ -13,7 +13,8 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? "github" : "list",
+  // In CI: a line per test in the log, plus annotations on failures.
+  reporter: process.env.CI ? [["list"], ["github"]] : "list",
   timeout: 60_000,
   use: {
     baseURL: `http://localhost:${PORT}`,

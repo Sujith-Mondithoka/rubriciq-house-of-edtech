@@ -109,7 +109,7 @@ jobs:
   e2e:
     name: End-to-end tests (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:18
@@ -158,7 +158,7 @@ jobs:
         run: pnpm test:e2e
 
       - name: Upload traces and screenshots
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/upload-artifact@v7
         with:
           name: playwright-results
