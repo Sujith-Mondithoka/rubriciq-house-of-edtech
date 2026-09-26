@@ -23,6 +23,19 @@ export default defineConfig({
           setupFiles: ["tests/setup/jsdom.ts"],
         },
       },
+      {
+        extends: true,
+        test: {
+          name: "integration",
+          environment: "node",
+          include: ["tests/integration/**/*.test.ts"],
+          globalSetup: ["tests/integration/setup/global-setup.ts"],
+          // Test files share one database, so run them one at a time.
+          fileParallelism: false,
+          testTimeout: 30_000,
+          hookTimeout: 60_000,
+        },
+      },
     ],
     coverage: {
       provider: "v8",

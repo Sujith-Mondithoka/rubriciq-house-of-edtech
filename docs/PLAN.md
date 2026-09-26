@@ -266,9 +266,15 @@ course."
   (`phase-N-short-name`) and one PR per phase, merged only when CI passes.
 - `ci.yml` on push and PR: pnpm install (cached) → lint → typecheck → unit → integration (Postgres
   service) → build → Playwright.
-- Vercel: preview deploys per PR. Production: after CI passes on `main`, run `drizzle-kit migrate`
-  on the production DB, then `vercel deploy --prod` (Vercel's automatic deploy of `main` disabled).
-- Env: `DATABASE_URL` (Neon pooled), `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `AI_PROVIDER`,
+- Vercel: preview deploys per PR. Production: after CI passes on `main`, run `pnpm db:migrate`
+  on the production DB, then `vercel deploy --prod` (`vercel.json` disables Git deploys of `main`).
+- Regions: Vercel functions in `sin1` (Singapore), Neon in `aws-ap-southeast-1`.
+- Neon branches: `main` = production, `dev` = local development + Vercel previews, `test` = local
+  integration tests. CI integration tests use a Postgres 18 service container instead (same
+  major version as Neon).
+- CI also fails if `schema.ts` changed without a generated migration.
+- Env: `DATABASE_URL` (Neon pooled), `DATABASE_URL_UNPOOLED` (direct, migrations),
+  `TEST_DATABASE_URL` (local tests only), `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `AI_PROVIDER`,
   `GOOGLE_GENERATIVE_AI_API_KEY`, `GEMINI_MODEL`, `UPSTASH_REDIS_REST_URL/TOKEN`, `CRON_SECRET`.
   All validated in `lib/env.ts`.
 - `vercel.json`: one daily cron → `/api/cron/reset-demo`.
