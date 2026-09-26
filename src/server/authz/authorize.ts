@@ -10,8 +10,9 @@ export function authorize<A extends Action>(
   member: Member | null | undefined,
   action: A,
   resource: PolicyResources[A],
+  notFoundMessage = "Course not found.",
 ): asserts member is Member {
   if (can(member, action, resource)) return;
-  if (!member) throw new AppError("NOT_FOUND", "Course not found.");
+  if (!member) throw new AppError("NOT_FOUND", notFoundMessage);
   throw new AppError("FORBIDDEN", "You do not have permission to do that.");
 }

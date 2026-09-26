@@ -1,11 +1,18 @@
+import { PlusIcon } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 
+import { AssignmentList } from "@/components/assignment/assignment-list";
 import { AiNotice } from "@/components/course/ai-notice";
 import { JoinCodePanel } from "@/components/course/join-code-panel";
+import { PaginationNav } from "@/components/layout/pagination-nav";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { parsePage } from "@/lib/pagination";
 import { loadCourseForMember } from "@/server/authz/load-course";
-import { isStaff } from "@/server/authz/policy";
+import { can, isStaff } from "@/server/authz/policy";
 import { db } from "@/server/db";
+import { listAssignments } from "@/server/services/assignment.service";
 import { countMembersByRole } from "@/server/services/course.service";
 
 export async function generateMetadata({
@@ -15,10 +22,18 @@ export async function generateMetadata({
   return { title: course.name };
 }
 
-export default async function CourseOverviewPage({ params }: PageProps<"/courses/[courseId]">) {
+export default async function CourseOverviewPage({
+  params,
+  searchParams,
+}: PageProps<"/courses/[courseId]">) {
   const { course, member, state } = await loadCourseForMember((await params).courseId);
   const staff = isStaff(member.role);
-  const counts = staff ? await countMembersByRole(db, course.id) : null;
+  const pageRequest = parsePage((await searchParams).page, 20);
+  const [counts, assignments] = await Promise.all([
+    staff ? countMembersByRole(db, course.id) : null,
+    listAssignments(db, course.id, { includeDrafts: staff }, pageRequest),
+  ]);
+  const canCreate = can(member, "assignment:create", { course: state });
 
   return (
     <div className="grid gap-6">
@@ -35,6 +50,40 @@ export default async function CourseOverviewPage({ params }: PageProps<"/courses
       ) : null}
 
       <AiNotice aiEnabled={course.aiEnabled} />
+
+      <section aria-labelledby="assignments-heading" className="grid gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="assignments-heading" className="text-lg font-medium">
+            Assignments
+          </h2>
+          {canCreate ? (
+            <Button asChild size="lg">
+              <Link href={`/courses/${course.id}/assignments/new`}>
+                <PlusIcon aria-hidden />
+                New assignment
+              </Link>
+            </Button>
+          ) : null}
+        </div>
+        <AssignmentList
+          courseId={course.id}
+          items={assignments.items}
+          emptyTitle="No assignments yet"
+          emptyHint={
+            canCreate
+              ? "Create an assignment, build its rubric, then publish it to students."
+              : staff
+                ? "The instructor has not created any assignments yet."
+                : "Your instructor has not published any assignments yet."
+          }
+        />
+        <PaginationNav
+          page={assignments.page}
+          hasMore={assignments.hasMore}
+          hrefFor={(page) => `/courses/${course.id}?page=${page}`}
+          label="Assignment pages"
+        />
+      </section>
 
       {staff && counts ? (
         <section aria-labelledby="people-heading" className="grid gap-4 rounded-xl border p-4">
@@ -65,20 +114,6 @@ export default async function CourseOverviewPage({ params }: PageProps<"/courses
           ) : null}
         </section>
       ) : null}
-
-      <section aria-labelledby="assignments-heading" className="grid gap-3">
-        <h2 id="assignments-heading" className="text-lg font-medium">
-          Assignments
-        </h2>
-        <div className="rounded-xl border border-dashed p-8 text-center">
-          <p className="font-medium">No assignments yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {staff
-              ? "Assignments and rubrics you create will be listed here."
-              : "Your instructor has not published any assignments yet."}
-          </p>
-        </div>
-      </section>
     </div>
   );
 }
