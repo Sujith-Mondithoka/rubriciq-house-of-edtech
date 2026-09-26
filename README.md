@@ -55,7 +55,7 @@ pnpm dev                     # http://localhost:3000
 ## CI/CD
 
 - **Pull requests:** format check, lint, typecheck, migration drift check, unit tests and build;
-  integration tests against a Postgres 17 service container; a Vercel preview deployment.
+  integration tests against a Postgres 18 service container; a Vercel preview deployment.
 - **`main`:** after both jobs pass, GitHub Actions applies database migrations to production and
   then deploys to Vercel. Vercel's own Git deploys of `main` are disabled (`vercel.json`) so code
   never goes live before its migrations.

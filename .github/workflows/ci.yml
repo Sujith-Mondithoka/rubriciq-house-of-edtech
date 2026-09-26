@@ -71,7 +71,8 @@ jobs:
     timeout-minutes: 15
     services:
       postgres:
-        image: postgres:17
+        # Same major version as Neon production.
+        image: postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres

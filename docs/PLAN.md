@@ -270,7 +270,8 @@ course."
   on the production DB, then `vercel deploy --prod` (`vercel.json` disables Git deploys of `main`).
 - Regions: Vercel functions in `sin1` (Singapore), Neon in `aws-ap-southeast-1`.
 - Neon branches: `main` = production, `dev` = local development + Vercel previews, `test` = local
-  integration tests. CI integration tests use a Postgres 17 service container instead.
+  integration tests. CI integration tests use a Postgres 18 service container instead (same
+  major version as Neon).
 - CI also fails if `schema.ts` changed without a generated migration.
 - Env: `DATABASE_URL` (Neon pooled), `DATABASE_URL_UNPOOLED` (direct, migrations),
   `TEST_DATABASE_URL` (local tests only), `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `AI_PROVIDER`,
