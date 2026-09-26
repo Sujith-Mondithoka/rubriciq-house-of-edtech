@@ -13,7 +13,8 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? "github" : "list",
+  // In CI: a line per test in the log, plus annotations on failures.
+  reporter: process.env.CI ? [["list"], ["github"]] : "list",
   timeout: 60_000,
   use: {
     baseURL: `http://localhost:${PORT}`,
@@ -29,7 +30,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `pnpm start -p ${PORT}`,
+    // Run Next directly (not through the pnpm wrapper) so the server exits when tests finish;
+    // through pnpm it was left running and CI waited until the job timed out.
+    command: `node node_modules/next/dist/bin/next start -p ${PORT}`,
+    gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     // Tests never call the real AI provider.
