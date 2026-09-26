@@ -158,8 +158,8 @@ offline. See [`.env.example`](.env.example) for every variable.
 ## CI/CD
 
 - **Pull requests:** format, lint, typecheck, migration drift check, unit tests, build;
-  integration tests on a Postgres 18 service; the Playwright suite (desktop project, with axe) on its
-  own Postgres with the mock AI; a Vercel preview. The 360 px project runs locally before merges.
+  integration tests on a Postgres 18 service; the full Playwright suite (desktop and 360 px, with axe) on
+  its own Postgres with the mock AI; a Vercel preview.
 - **`main`:** when all three jobs pass, GitHub Actions applies migrations to production, then
   deploys to Vercel (`sin1`, next to Neon `ap-southeast-1`). Vercel's Git deploys of `main` are
   off so code never goes live before its migrations.
