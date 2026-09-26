@@ -2,17 +2,27 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LocalDateTime } from "@/components/common/local-date-time";
+import { AiDraftButton } from "@/components/grading/ai-draft-button";
+import { aiFailureReason } from "@/components/grading/ai-run-status";
+import { AutoRefresh } from "@/components/grading/auto-refresh";
 import { GradeView } from "@/components/grading/grade-view";
 import { GraderPanel } from "@/components/grading/grader-panel";
 import { QueueStatusBadge } from "@/components/grading/queue-status-badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { highlightSegments } from "@/lib/highlight";
+import { generateAiDraftsAction } from "@/server/actions/ai.actions";
 import { releaseGradesAction, saveGradeAction } from "@/server/actions/grade.actions";
+import { aiConfig } from "@/server/ai/provider";
 import { loadSubmissionForGrading } from "@/server/authz/load-course";
 import { can } from "@/server/authz/policy";
 import { db } from "@/server/db";
+import { getLatestRuns, sweepStaleRuns } from "@/server/services/ai.service";
 import { getRubric } from "@/server/services/assignment.service";
 import { getGradeForStaff } from "@/server/services/grade.service";
 import { getUserName } from "@/server/services/user.service";
+
+/** AI drafts started here run after the response (`after()`), within this limit. */
+export const maxDuration = 300;
 
 type Props = PageProps<"/courses/[courseId]/assignments/[assignmentId]/submissions/[submissionId]">;
 
@@ -29,17 +39,24 @@ export default async function GraderPage({ params }: Props) {
     assignmentId,
     submissionId,
   );
-  const [criteria, grade, studentName] = await Promise.all([
+  // Lost AI runs (PENDING > 5 min) become FAILED before anything is shown.
+  await sweepStaleRuns(db, assignment.id, new Date());
+  const [criteria, grade, studentName, runs] = await Promise.all([
     getRubric(db, assignment.id),
     getGradeForStaff(db, submission.id),
     getUserName(db, submission.studentId),
+    getLatestRuns(db, [submission.id]),
   ]);
+  const run = runs.get(submission.id);
   const gradeState = grade ? { status: grade.status } : null;
   const canSave = can(member, "grade:save", { course: state, grade: gradeState });
   const canRelease = can(member, "grade:release", {
     course: state,
     grade: { status: grade?.status ?? "DRAFT" },
   });
+  // AI is offered only when configured, on for the course, and nobody has graded by hand yet.
+  const canUseAi =
+    aiConfig.available && can(member, "ai:run", { course: state }) && canSave && !grade?.gradedBy;
   const queueHref = `/courses/${courseId}/assignments/${assignment.id}/submissions`;
   const status =
     grade?.status === "RELEASED"
@@ -49,6 +66,7 @@ export default async function GraderPage({ params }: Props) {
         : grade
           ? "AI_DRAFTED"
           : "SUBMITTED";
+  const evidence = grade?.scores.flatMap((s) => (s.source !== "HUMAN" ? (s.aiEvidence ?? []) : []));
 
   return (
     <div className="grid gap-6">
@@ -84,14 +102,64 @@ export default async function GraderPage({ params }: Props) {
             Student&apos;s answer
           </h3>
           <div className="rounded-xl border p-4 font-serif leading-relaxed break-words whitespace-pre-wrap">
-            {submission.content}
+            {highlightSegments(submission.content, evidence ?? []).map((segment, i) =>
+              segment.highlighted ? (
+                <mark key={i} className="rounded-sm bg-amber-200/70 px-0.5 dark:bg-amber-500/30">
+                  {segment.text}
+                </mark>
+              ) : (
+                segment.text
+              ),
+            )}
           </div>
+          {evidence?.length ? (
+            <p className="text-sm text-muted-foreground">
+              Highlighted: passages the AI quoted as evidence.
+            </p>
+          ) : null}
         </section>
 
         <section aria-labelledby="grade-heading" className="grid gap-3">
           <h3 id="grade-heading" className="font-medium">
             Grade
           </h3>
+
+          {canUseAi && run?.status === "PENDING" ? (
+            <Alert>
+              <AlertTitle>AI is drafting this grade…</AlertTitle>
+              <AlertDescription>
+                <AutoRefresh label="This page updates when the draft is ready. You can also grade manually." />
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {canUseAi && run?.status === "FAILED" ? (
+            <Alert>
+              <AlertTitle>AI draft failed: retry or grade manually</AlertTitle>
+              <AlertDescription className="grid gap-3">
+                <p>The draft failed because {aiFailureReason(run.errorCode)}.</p>
+                <AiDraftButton
+                  assignmentId={assignment.id}
+                  submissionIds={[submission.id]}
+                  label="Retry AI draft"
+                  action={generateAiDraftsAction}
+                />
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {canUseAi && !grade && run?.status !== "PENDING" && run?.status !== "FAILED" ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed p-3">
+              <AiDraftButton
+                assignmentId={assignment.id}
+                submissionIds={[submission.id]}
+                label="Generate AI draft"
+                action={generateAiDraftsAction}
+              />
+              <p className="text-sm text-muted-foreground">
+                Optional. You review and can change every suggestion.
+              </p>
+            </div>
+          ) : null}
+
           {grade?.status === "RELEASED" ? (
             <>
               <Alert>
@@ -108,6 +176,8 @@ export default async function GraderPage({ params }: Props) {
             </>
           ) : canSave ? (
             <GraderPanel
+              // A new version (e.g. an AI draft arriving) remounts the form with fresh values.
+              key={grade?.version ?? 0}
               submissionId={submission.id}
               assignmentId={assignment.id}
               criteria={criteria}
@@ -116,7 +186,16 @@ export default async function GraderPage({ params }: Props) {
                 version: grade?.version ?? 0,
                 reviewed: Boolean(grade?.gradedBy),
                 overallFeedback: grade?.overallFeedback ?? "",
-                scores: grade?.scores ?? [],
+                scores: (grade?.scores ?? []).map((s) => ({
+                  criterionId: s.criterionId,
+                  levelId: s.levelId,
+                  feedback: s.feedback,
+                  ai: {
+                    source: s.source,
+                    confidence: s.aiConfidence,
+                    evidence: s.aiEvidence ?? [],
+                  },
+                })),
               }}
               canRelease={canRelease}
               saveAction={saveGradeAction}

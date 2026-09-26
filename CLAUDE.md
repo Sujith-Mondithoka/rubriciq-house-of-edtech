@@ -113,7 +113,8 @@ tests/{unit,integration,e2e,fixtures}
 - AI is used only to draft per-criterion scores and feedback. It never releases a grade, and nothing
   depends on it: manual grading must always work.
 - Provider chosen by `AI_PROVIDER=gemini|mock`; model id in `GEMINI_MODEL`. No API key → AI UI hidden.
-- `generateObject` with a Zod schema (levelId, feedback, evidence[], confidence). Postprocess:
+- Schema-constrained output with a Zod schema (levelId, feedback, evidence[], confidence):
+  `generateText` + `Output.object`, AI SDK 7's replacement for the deprecated `generateObject`. Postprocess:
   reject levelIds not in that criterion; drop evidence quotes not found verbatim in the submission
   and mark that criterion low-confidence.
 - Student text goes inside clear delimiters and is treated as data, never as instructions.

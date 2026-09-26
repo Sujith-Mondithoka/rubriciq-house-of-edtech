@@ -243,8 +243,11 @@ for the next.
 1. A grader clicks Generate. The server checks: role, `course.ai_enabled`, daily cap, and that no
    active run exists.
 2. The server creates PENDING runs and processes them in `after()`, at most 3 at a time.
-3. Each run calls `generateObject` (Gemini Flash via `@ai-sdk/google`) with a Zod schema:
+3. Each run calls Gemini Flash via `@ai-sdk/google` (default `gemini-3.8-flash`, a stable model on
+   the free tier) with a Zod schema:
    `{ criteria: [{ criterionId, levelId, feedback, evidence[], confidence }], overallFeedback }`.
+   AI SDK 7 deprecates `generateObject`; its replacement `generateText` + `Output.object` is used,
+   with the same schema-constrained output.
 4. Postprocess: reject unknown levelIds, drop evidence not found verbatim in the submission, flag
    low confidence.
 5. Write `criterion_score` rows (source AI) into a DRAFT grade and set the run to SUCCEEDED, using a
@@ -339,7 +342,8 @@ releases moves into Phase 7 if Phase 9 is cut.
 8. No org admin; a course can be orphaned if its Instructor leaves.
 9. Time zone edge cases around deadlines (stored UTC, shown in local time).
 10. Polling for AI status instead of SSE.
-11. E2E uses the mock AI only; the real Gemini call needs a manual smoke test before release.
+11. E2E uses the mock AI only; the real Gemini call needs a manual smoke test before release
+    (`pnpm ai:smoke`: one sample essay, prints the postprocessed draft, writes nothing).
 12. Scope is large for a one-day deadline; rely on the cut order.
 13. Demo sign-in runs in a Server Action, which bypasses Better Auth's HTTP rate limiter; repeated
     clicks can create many demo sessions. Covered by the Phase 11 rate limit on actions.

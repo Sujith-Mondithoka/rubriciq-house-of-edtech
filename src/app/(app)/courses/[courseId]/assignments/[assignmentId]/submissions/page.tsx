@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LocalDateTime } from "@/components/common/local-date-time";
+import { AiDraftButton } from "@/components/grading/ai-draft-button";
+import { aiFailureReason, AiRunBadge } from "@/components/grading/ai-run-status";
+import { AutoRefresh } from "@/components/grading/auto-refresh";
 import { QUEUE_STATUS_LABELS, QueueStatusBadge } from "@/components/grading/queue-status-badge";
 import { ReleaseGradesButton } from "@/components/grading/release-grades-button";
 import { PaginationNav } from "@/components/layout/pagination-nav";
@@ -14,15 +17,22 @@ import {
   type QueueStatus,
   RELEASE_BATCH_MAX,
 } from "@/lib/validation/grade.schema";
+import { generateAiDraftsAction } from "@/server/actions/ai.actions";
 import { releaseGradesAction } from "@/server/actions/grade.actions";
+import { aiConfig } from "@/server/ai/provider";
 import { loadAssignmentForGrading } from "@/server/authz/load-course";
 import { can } from "@/server/authz/policy";
 import { db } from "@/server/db";
+import { type AiRunSummary, getLatestRuns, sweepStaleRuns } from "@/server/services/ai.service";
 import {
   countGradingQueue,
   listGradingQueue,
   listReleasable,
+  type QueueItem,
 } from "@/server/services/grade.service";
+
+/** AI drafts started here run after the response (`after()`), within this limit. */
+export const maxDuration = 300;
 
 type Props = PageProps<"/courses/[courseId]/assignments/[assignmentId]/submissions">;
 
@@ -50,11 +60,26 @@ export default async function GradingQueuePage({ params, searchParams }: Props) 
   const ref = { courseId: assignment.courseId, assignmentId: assignment.id };
 
   const canRelease = can(member, "grade:release", { course: state, grade: { status: "DRAFT" } });
+  const canUseAi = aiConfig.available && can(member, "ai:run", { course: state });
+  // Lost AI runs (PENDING > 5 min) become FAILED before the queue is shown.
+  await sweepStaleRuns(db, assignment.id, new Date());
   const [queue, counts, releasable] = await Promise.all([
     listGradingQueue(db, ref, filter, pageRequest),
     countGradingQueue(db, ref),
     canRelease ? listReleasable(db, assignment.id, RELEASE_BATCH_MAX) : [],
   ]);
+  const runs = canUseAi
+    ? await getLatestRuns(
+        db,
+        queue.items.flatMap((i) => (i.submissionId ? [i.submissionId] : [])),
+      )
+    : new Map<string, AiRunSummary>();
+  // Only runs that still matter: a person's grade supersedes any AI run.
+  const runFor = (item: QueueItem) => {
+    const run = item.submissionId ? runs.get(item.submissionId) : undefined;
+    return run && (item.status === "SUBMITTED" || item.status === "AI_DRAFTED") ? run : undefined;
+  };
+  const anyPending = queue.items.some((i) => runFor(i)?.status === "PENDING");
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const base = `/courses/${courseId}/assignments/${assignment.id}`;
   const hrefFor = (status: QueueStatus | null, page = 1) => {
@@ -80,19 +105,34 @@ export default async function GradingQueuePage({ params, searchParams }: Props) 
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold">Grading queue</h2>
-          {canRelease ? (
-            <ReleaseGradesButton
-              assignmentId={assignment.id}
-              grades={releasable}
-              action={releaseGradesAction}
-            />
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {canUseAi && counts.SUBMITTED > 0 ? (
+              <AiDraftButton
+                assignmentId={assignment.id}
+                label="Generate AI drafts"
+                action={generateAiDraftsAction}
+              />
+            ) : null}
+            {canRelease ? (
+              <ReleaseGradesButton
+                assignmentId={assignment.id}
+                grades={releasable}
+                action={releaseGradesAction}
+              />
+            ) : null}
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">
           {canRelease
             ? "Grade each submission, then release reviewed grades to students."
             : "Grade each submission. The instructor releases grades to students."}
+          {canUseAi
+            ? " AI drafts are suggestions: open each one, check it, and save it before release."
+            : ""}
         </p>
+        {anyPending ? (
+          <AutoRefresh label="AI drafts are running. This list updates by itself." />
+        ) : null}
       </header>
 
       <nav aria-label="Filter by status" className="-mx-1 overflow-x-auto">
@@ -130,8 +170,24 @@ export default async function GradingQueuePage({ params, searchParams }: Props) 
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium break-words">{item.name}</span>
                   <QueueStatusBadge status={item.status} />
+                  {runFor(item) ? <AiRunBadge run={runFor(item)!} /> : null}
                   {item.isLate ? <span className="text-sm text-destructive">Late</span> : null}
                 </div>
+                {runFor(item)?.status === "FAILED" ? (
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span>
+                      AI draft failed because {aiFailureReason(runFor(item)!.errorCode)}. Retry or
+                      grade manually.
+                    </span>
+                    <AiDraftButton
+                      assignmentId={assignment.id}
+                      submissionIds={[item.submissionId!]}
+                      label="Retry"
+                      ariaLabel={`Retry AI draft for ${item.name}`}
+                      action={generateAiDraftsAction}
+                    />
+                  </div>
+                ) : null}
                 <p className="text-sm break-all text-muted-foreground">{item.email}</p>
                 {item.submittedAt ? (
                   <p className="text-sm text-muted-foreground">
