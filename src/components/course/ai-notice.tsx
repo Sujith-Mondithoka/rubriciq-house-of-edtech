@@ -9,9 +9,21 @@ export function AiNotice({ aiEnabled }: { aiEnabled: boolean }) {
       {aiEnabled ? <BotIcon aria-hidden /> : <BotOffIcon aria-hidden />}
       <AlertTitle>{aiEnabled ? "AI-assisted feedback" : "AI is off"}</AlertTitle>
       <AlertDescription>
-        {aiEnabled
-          ? "Submissions in this course may be sent to Google Gemini to draft feedback. A teacher reviews every grade."
-          : "AI is turned off for this course. Submissions are never sent to an AI provider."}
+        {aiEnabled ? (
+          <>
+            <p>
+              Submissions in this course may be sent to Google Gemini to draft feedback. A teacher
+              reviews every grade.
+            </p>
+            <p>
+              This app uses Gemini&apos;s free tier, where Google may use submitted content to
+              improve its products. Don&apos;t include personal information you would not want
+              shared.
+            </p>
+          </>
+        ) : (
+          "AI is turned off for this course. Submissions are never sent to an AI provider."
+        )}
       </AlertDescription>
     </Alert>
   );

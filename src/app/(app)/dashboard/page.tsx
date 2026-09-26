@@ -71,7 +71,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                       className={
                         active
                           ? "inline-flex h-8 items-center rounded-md bg-background px-3 text-sm font-medium shadow-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                          : "inline-flex h-8 items-center rounded-md px-3 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                          : "inline-flex h-8 items-center rounded-md px-3 text-sm text-foreground/75 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
                       }
                     >
                       {label}
