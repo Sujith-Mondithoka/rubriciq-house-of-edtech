@@ -32,6 +32,8 @@ export default defineConfig({
     command: `pnpm start -p ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
+    // Tests never call the real AI provider.
+    env: { AI_PROVIDER: "mock" },
     timeout: 60_000,
   },
 });
