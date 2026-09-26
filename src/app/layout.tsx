@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { SiteFooter } from "@/components/layout/site-footer";
+import { Toaster } from "@/components/ui/sonner";
 import { siteConfig } from "@/lib/site";
 import "./globals.css";
 
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Each route group renders its own <header> and <main id="main">. */}
         <div className="flex flex-1 flex-col">{children}</div>
         <SiteFooter />
+        <Toaster position="top-center" richColors closeButton />
       </body>
     </html>
   );
