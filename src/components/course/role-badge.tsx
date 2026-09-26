@@ -1,5 +1,3 @@
-import { Badge } from "@/components/ui/badge";
-
 type Role = "INSTRUCTOR" | "TA" | "STUDENT";
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -8,10 +6,19 @@ export const ROLE_LABELS: Record<Role, string> = {
   STUDENT: "Student",
 };
 
+const pill =
+  "inline-flex h-6 w-fit shrink-0 items-center rounded-full px-2.5 text-xs font-medium whitespace-nowrap";
+
 export function RoleBadge({ role }: { role: Role }) {
-  return <Badge variant={role === "STUDENT" ? "outline" : "secondary"}>{ROLE_LABELS[role]}</Badge>;
+  return (
+    <span
+      className={`${pill} ${role === "STUDENT" ? "border text-foreground/80" : "bg-secondary text-secondary-foreground"}`}
+    >
+      {ROLE_LABELS[role]}
+    </span>
+  );
 }
 
 export function ArchivedBadge() {
-  return <Badge variant="outline">Archived</Badge>;
+  return <span className={`${pill} bg-muted text-muted-foreground`}>Archived</span>;
 }

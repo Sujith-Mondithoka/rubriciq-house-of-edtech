@@ -1,3 +1,4 @@
+import { CalendarClockIcon, HourglassIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -5,6 +6,7 @@ import { AssignmentActions } from "@/components/assignment/assignment-actions";
 import { AssignmentStatusBadge } from "@/components/assignment/assignment-status-badge";
 import { RubricView } from "@/components/assignment/rubric-view";
 import { DisabledInDemo } from "@/components/common/disabled-in-demo";
+import { EmptyState } from "@/components/common/empty-state";
 import { LocalDateTime } from "@/components/common/local-date-time";
 import { AiNotice } from "@/components/course/ai-notice";
 import { GradeView } from "@/components/grading/grade-view";
@@ -108,22 +110,77 @@ export default async function AssignmentPage({ params }: Props) {
   const pastDue = isLate(now, assignment.dueAt);
   const base = `/courses/${courseId}/assignments/${assignment.id}`;
 
+  const gradeSection =
+    !staff && ownSubmitted ? (
+      <section aria-labelledby="grade-heading" className="grid gap-3">
+        <h3 id="grade-heading" className="section-title">
+          Your grade
+        </h3>
+        {canViewGrade && released ? (
+          <>
+            <GradeView criteria={criteria} grade={released} maxScore={assignment.maxScore} />
+            {regrade ? (
+              <RegradeStatus
+                regrade={regrade}
+                criterionTitle={criteria.find((c) => c.id === regrade.criterionId)?.title ?? null}
+                audience="student"
+              />
+            ) : canRequestRegrade && ownSubmitted ? (
+              <div className="grid gap-2">
+                <h4 className="font-medium">Disagree with a score?</h4>
+                <p className="text-sm text-muted-foreground">
+                  You can ask for one regrade
+                  {regradeClosesAt ? (
+                    <>
+                      {" "}
+                      until <LocalDateTime iso={regradeClosesAt.toISOString()} />
+                    </>
+                  ) : null}
+                  .
+                </p>
+                <RegradeRequestForm
+                  submissionId={ownSubmitted.id}
+                  criteria={criteria.map((c) => ({ id: c.id, title: c.title }))}
+                  action={createRegradeAction}
+                />
+              </div>
+            ) : regradeClosesAt && now > regradeClosesAt ? (
+              <p className="text-sm text-muted-foreground">
+                The regrade window closed on <LocalDateTime iso={regradeClosesAt.toISOString()} />.
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <EmptyState icon={HourglassIcon} title="Your grade is on its way" compact>
+            Not released yet. Your grade and feedback appear here once your teacher releases them.
+          </EmptyState>
+        )}
+      </section>
+    ) : null;
+
   return (
-    <article aria-labelledby="assignment-heading" className="grid gap-6">
-      <header className="grid gap-3">
+    <article aria-labelledby="assignment-heading" className="grid w-full max-w-4xl gap-8">
+      <header className="card-surface grid gap-4 p-5">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 id="assignment-heading" className="text-xl font-semibold break-words">
+          <h2 id="assignment-heading" className="page-title break-words">
             {assignment.title}
           </h2>
           <AssignmentStatusBadge status={assignment.status} />
         </div>
-        <p className="text-sm text-muted-foreground">
-          Due <LocalDateTime iso={assignment.dueAt.toISOString()} /> ·{" "}
-          {assignment.allowLate ? "Late submissions accepted" : "No late submissions"} ·{" "}
-          {assignment.maxScore} points
-        </p>
+        <ul className="flex flex-wrap gap-2 text-sm" aria-label="Assignment details">
+          <li className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1">
+            <CalendarClockIcon aria-hidden className="size-3.5 text-muted-foreground" />
+            Due <LocalDateTime iso={assignment.dueAt.toISOString()} />
+          </li>
+          <li className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1">
+            {assignment.allowLate ? "Late submissions accepted" : "No late submissions"}
+          </li>
+          <li className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 tabular-nums">
+            {assignment.maxScore} points
+          </li>
+        </ul>
         {canUpdate ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 border-t pt-4">
             {assignment.status !== "CLOSED" ? (
               <Button asChild variant="outline" size="lg">
                 <Link href={`${base}/edit`}>Edit details</Link>
@@ -159,7 +216,7 @@ export default async function AssignmentPage({ params }: Props) {
       {staff && assignment.status !== "DRAFT" ? (
         <section aria-labelledby="submissions-summary-heading" className="grid gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 id="submissions-summary-heading" className="font-medium">
+            <h3 id="submissions-summary-heading" className="section-title">
               Submissions
             </h3>
             <div className="flex flex-wrap gap-2">
@@ -173,7 +230,7 @@ export default async function AssignmentPage({ params }: Props) {
               </Button>
             </div>
           </div>
-          <dl className="grid grid-cols-3 gap-3 text-center">
+          <dl className="grid grid-cols-3 gap-3">
             {(
               [
                 ["Submitted", summary.submitted],
@@ -181,89 +238,45 @@ export default async function AssignmentPage({ params }: Props) {
                 ["Drafts in progress", summary.drafts],
               ] as const
             ).map(([label, n]) => (
-              <div key={label} className="rounded-lg bg-muted/50 p-3">
+              <div key={label} className="card-surface grid gap-1 p-4">
                 <dt className="text-sm text-muted-foreground">{label}</dt>
-                <dd className="text-2xl font-semibold">{n}</dd>
+                <dd className="text-2xl font-semibold tabular-nums">{n}</dd>
               </div>
             ))}
           </dl>
         </section>
       ) : null}
 
-      <section aria-labelledby="instructions-heading" className="grid gap-2">
-        <h3 id="instructions-heading" className="font-medium">
+      {gradeSection}
+
+      <section aria-labelledby="instructions-heading" className="grid gap-3">
+        <h3 id="instructions-heading" className="section-title">
           Instructions
         </h3>
-        <p className="whitespace-pre-wrap">
-          {assignment.instructions || (
-            <span className="text-muted-foreground">No instructions.</span>
-          )}
-        </p>
+        <div className="card-surface p-5">
+          <p className="leading-relaxed whitespace-pre-wrap">
+            {assignment.instructions || (
+              <span className="text-muted-foreground">No instructions.</span>
+            )}
+          </p>
+        </div>
       </section>
 
       <section aria-labelledby="rubric-view-heading" className="grid gap-3">
-        <h3 id="rubric-view-heading" className="font-medium">
+        <h3 id="rubric-view-heading" className="section-title">
           Rubric
         </h3>
         <RubricView criteria={criteria} maxScore={assignment.maxScore} />
       </section>
 
-      {!staff && ownSubmitted ? (
-        <section aria-labelledby="grade-heading" className="grid gap-3">
-          <h3 id="grade-heading" className="text-lg font-medium">
-            Your grade
-          </h3>
-          {canViewGrade && released ? (
-            <>
-              <GradeView criteria={criteria} grade={released} maxScore={assignment.maxScore} />
-              {regrade ? (
-                <RegradeStatus
-                  regrade={regrade}
-                  criterionTitle={criteria.find((c) => c.id === regrade.criterionId)?.title ?? null}
-                  audience="student"
-                />
-              ) : canRequestRegrade && ownSubmitted ? (
-                <div className="grid gap-2">
-                  <h4 className="font-medium">Disagree with a score?</h4>
-                  <p className="text-sm text-muted-foreground">
-                    You can ask for one regrade
-                    {regradeClosesAt ? (
-                      <>
-                        {" "}
-                        until <LocalDateTime iso={regradeClosesAt.toISOString()} />
-                      </>
-                    ) : null}
-                    .
-                  </p>
-                  <RegradeRequestForm
-                    submissionId={ownSubmitted.id}
-                    criteria={criteria.map((c) => ({ id: c.id, title: c.title }))}
-                    action={createRegradeAction}
-                  />
-                </div>
-              ) : regradeClosesAt && now > regradeClosesAt ? (
-                <p className="text-sm text-muted-foreground">
-                  The regrade window closed on <LocalDateTime iso={regradeClosesAt.toISOString()} />
-                  .
-                </p>
-              ) : null}
-            </>
-          ) : (
-            <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-              Not released yet. Your grade and feedback appear here once your teacher releases them.
-            </p>
-          )}
-        </section>
-      ) : null}
-
       {!staff ? (
         <section aria-labelledby="submission-heading" className="grid gap-4">
-          <h3 id="submission-heading" className="text-lg font-medium">
+          <h3 id="submission-heading" className="section-title">
             Your submission
           </h3>
           <AiNotice aiEnabled={course.aiEnabled} />
           {canWrite ? (
-            <>
+            <div className="card-surface grid gap-4 p-5">
               {pastDue ? (
                 <Alert>
                   <AlertDescription>
@@ -279,7 +292,7 @@ export default async function AssignmentPage({ params }: Props) {
                 submitAction={submitAction}
                 deleteAction={deleteDraftAction}
               />
-            </>
+            </div>
           ) : (
             <ReadOnlySubmission
               own={own}
@@ -299,7 +312,6 @@ export default async function AssignmentPage({ params }: Props) {
     </article>
   );
 }
-
 function ReadOnlySubmission({
   own,
   reason,
@@ -324,7 +336,7 @@ function ReadOnlySubmission({
             {own.isLate ? "Submitted late" : "Submitted"} on{" "}
             <LocalDateTime iso={own.submittedAt.toISOString()} /> · {own.wordCount} words
           </p>
-          <div className="rounded-xl border p-4 font-serif leading-relaxed whitespace-pre-wrap">
+          <div className="card-surface p-5 font-serif text-[15px] leading-7 whitespace-pre-wrap">
             {own.content}
           </div>
         </>

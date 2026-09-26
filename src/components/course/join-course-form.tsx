@@ -42,7 +42,7 @@ export function JoinCourseForm({ action }: { action: ServerAction<JoinResult> })
   });
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-3 sm:flex-row sm:items-start">
+    <form onSubmit={onSubmit} noValidate className="grid gap-3">
       <div className="flex-1">
         <TextField
           id="join-code"
@@ -56,13 +56,7 @@ export function JoinCourseForm({ action }: { action: ServerAction<JoinResult> })
           {...register("joinCode")}
         />
       </div>
-      <Button
-        type="submit"
-        size="lg"
-        className="sm:mt-6.5"
-        disabled={isSubmitting}
-        aria-busy={isSubmitting}
-      >
+      <Button type="submit" size="lg" disabled={isSubmitting} aria-busy={isSubmitting}>
         {isSubmitting ? "Joining…" : "Join course"}
       </Button>
     </form>
