@@ -1,9 +1,12 @@
+import { hashPassword } from "better-auth/crypto";
 import { eq, inArray, or } from "drizzle-orm";
 
 import { countWords } from "@/lib/text";
 
 import type { Db, Tx } from "./client";
+import { DEMO_JOIN_CODE, DEMO_PASSWORD, DEMO_USER_IDS, DEMO_USERS } from "./demo-accounts";
 import {
+  account,
   assignment,
   course,
   courseMember,
@@ -20,32 +23,7 @@ import {
  * resetting only ever touches demo-owned rows and is safe to run in production.
  */
 
-export const DEMO_USERS = {
-  instructor: {
-    id: "demo-instructor",
-    name: "Priya Sharma (Demo Instructor)",
-    email: "instructor@rubriciq.demo",
-  },
-  ta: { id: "demo-ta", name: "Arjun Mehta (Demo TA)", email: "ta@rubriciq.demo" },
-  student1: {
-    id: "demo-student-1",
-    name: "Ananya Rao (Demo Student)",
-    email: "student1@rubriciq.demo",
-  },
-  student2: {
-    id: "demo-student-2",
-    name: "Rahul Verma (Demo Student)",
-    email: "student2@rubriciq.demo",
-  },
-  student3: {
-    id: "demo-student-3",
-    name: "Meera Iyer (Demo Student)",
-    email: "student3@rubriciq.demo",
-  },
-} as const;
-
-export const DEMO_USER_IDS = Object.values(DEMO_USERS).map((u) => u.id);
-export const DEMO_JOIN_CODE = "DEMO2026";
+export { DEMO_JOIN_CODE, DEMO_USERS } from "./demo-accounts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -235,6 +213,8 @@ async function insertRubric(tx: Tx, assignmentId: string, rubric: CriterionSeed[
 
 /** Deletes and recreates all demo data. `now` is injectable for deterministic tests. */
 export async function resetDemoData(db: Db, now: Date = new Date()): Promise<SeedSummary> {
+  // Hash once, outside the transaction (scrypt is deliberately slow).
+  const passwordHash = await hashPassword(DEMO_PASSWORD);
   await deleteDemoData(db);
 
   return db.transaction(async (tx) => {
@@ -243,6 +223,17 @@ export async function resetDemoData(db: Db, now: Date = new Date()): Promise<See
     await tx
       .insert(user)
       .values(Object.values(DEMO_USERS).map((u) => ({ ...u, emailVerified: true })));
+
+    // Email/password credentials in Better Auth's format.
+    await tx.insert(account).values(
+      Object.values(DEMO_USERS).map((u) => ({
+        id: `${u.id}-credential`,
+        accountId: u.id,
+        providerId: "credential",
+        userId: u.id,
+        password: passwordHash,
+      })),
+    );
 
     const [demoCourse] = await tx
       .insert(course)
