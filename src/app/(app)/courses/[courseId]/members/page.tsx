@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { DisabledInDemo } from "@/components/common/disabled-in-demo";
 import { AddTaForm } from "@/components/course/add-ta-form";
 import { RemoveMemberButton } from "@/components/course/remove-member-button";
 import { ROLE_LABELS, RoleBadge } from "@/components/course/role-badge";
 import { PaginationNav } from "@/components/layout/pagination-nav";
 import { parsePage } from "@/lib/pagination";
 import { addTaAction, removeMemberAction } from "@/server/actions/course.actions";
+import { isDemoLocked } from "@/server/authz/demo";
 import { loadCourseForMember } from "@/server/authz/load-course";
 import { can } from "@/server/authz/policy";
 import { db } from "@/server/db";
@@ -21,9 +23,11 @@ export default async function MembersPage({
   searchParams,
 }: PageProps<"/courses/[courseId]/members">) {
   const { courseId } = await params;
-  const { course, member, state } = await loadCourseForMember(courseId);
+  const { user, course, member, state } = await loadCourseForMember(courseId);
   if (!can(member, "course:viewMembers", { course: state })) notFound();
   const canManage = can(member, "course:manageMembers", { course: state });
+  // Members of the shared demo course cannot be removed (enforced on the server too).
+  const locked = isDemoLocked(course, user.id);
 
   const pageRequest = parsePage((await searchParams).page, 50);
   const members = await listMembers(db, course.id, pageRequest);
@@ -63,7 +67,9 @@ export default async function MembersPage({
                     {m.email} · joined {dateFormat.format(m.joinedAt)}
                   </p>
                 </div>
-                {canManage && m.role !== "INSTRUCTOR" ? (
+                {canManage && m.role !== "INSTRUCTOR" && locked ? (
+                  <DisabledInDemo id={`remove-${m.id}`} label="Remove" />
+                ) : canManage && m.role !== "INSTRUCTOR" ? (
                   <RemoveMemberButton
                     memberId={m.id}
                     name={m.name}
