@@ -325,8 +325,8 @@ describe("list statuses", () => {
     unwrap(await submitHandler(ctx(sam, AFTER_DUE), { assignmentId: lateOk, content: "Late" }));
 
     const own = await getOwnSubmissionStatuses(db, sam.id, [assignmentId, lateOk]);
-    expect(own.get(assignmentId)).toEqual({ status: "SUBMITTED", isLate: false });
-    expect(own.get(lateOk)).toEqual({ status: "SUBMITTED", isLate: true });
+    expect(own.get(assignmentId)).toEqual({ status: "SUBMITTED", isLate: false, released: false });
+    expect(own.get(lateOk)).toEqual({ status: "SUBMITTED", isLate: true, released: false });
     expect((await getOwnSubmissionStatuses(db, sue.id, [lateOk])).size).toBe(0);
 
     const counts = await countSubmissions(db, [assignmentId, lateOk]);

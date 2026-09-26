@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { isLate } from "@/lib/dates";
 import { AppError } from "@/lib/errors";
@@ -42,24 +42,31 @@ export async function getOwnSubmission(
   return row ?? null;
 }
 
+export type OwnStatus = Pick<Submission, "status" | "isLate"> & { released: boolean };
+
 /** The student's own status per assignment, for a list page (one query). */
 export async function getOwnSubmissionStatuses(
   db: DbOrTx,
   studentId: string,
   assignmentIds: string[],
 ) {
-  if (!assignmentIds.length) return new Map<string, Pick<Submission, "status" | "isLate">>();
+  if (!assignmentIds.length) return new Map<string, OwnStatus>();
   const rows = await db
     .select({
       assignmentId: submission.assignmentId,
       status: submission.status,
       isLate: submission.isLate,
+      // Only a released grade is visible to the student; drafts stay hidden.
+      released: sql<boolean>`${grade.status} is not distinct from 'RELEASED'`,
     })
     .from(submission)
+    .leftJoin(grade, eq(grade.submissionId, submission.id))
     .where(
       and(eq(submission.studentId, studentId), inArray(submission.assignmentId, assignmentIds)),
     );
-  return new Map(rows.map((r) => [r.assignmentId, { status: r.status, isLate: r.isLate }]));
+  return new Map(
+    rows.map((r) => [r.assignmentId, { status: r.status, isLate: r.isLate, released: r.released }]),
+  );
 }
 
 export type SubmissionCounts = { submitted: number; late: number; drafts: number };
