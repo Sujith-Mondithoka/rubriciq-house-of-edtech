@@ -29,6 +29,7 @@ export default async function CourseLayout({
         <CourseNav
           courseId={course.id}
           showMembers={can(member, "course:viewMembers", { course: state })}
+          showAnalytics={can(member, "analytics:view", { course: state })}
           showSettings={member.role === "INSTRUCTOR"}
         />
       </div>

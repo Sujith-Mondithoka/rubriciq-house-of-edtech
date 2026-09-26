@@ -4,14 +4,20 @@ import { cn } from "cn";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type CourseNavProps = { courseId: string; showMembers: boolean; showSettings: boolean };
+type CourseNavProps = {
+  courseId: string;
+  showMembers: boolean;
+  showAnalytics: boolean;
+  showSettings: boolean;
+};
 
-export function CourseNav({ courseId, showMembers, showSettings }: CourseNavProps) {
+export function CourseNav({ courseId, showMembers, showAnalytics, showSettings }: CourseNavProps) {
   const pathname = usePathname();
   const base = `/courses/${courseId}`;
   const links = [
     { href: base, label: "Overview" },
     ...(showMembers ? [{ href: `${base}/members`, label: "Members" }] : []),
+    ...(showAnalytics ? [{ href: `${base}/analytics`, label: "Analytics" }] : []),
     ...(showSettings ? [{ href: `${base}/settings`, label: "Settings" }] : []),
   ];
 
