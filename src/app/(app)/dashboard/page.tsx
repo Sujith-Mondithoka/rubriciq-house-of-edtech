@@ -39,10 +39,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <h1 className="text-2xl font-semibold tracking-tight">Welcome, {firstName}</h1>
           <p className="text-muted-foreground">Signed in as {user.email}</p>
         </div>
-        <Button asChild size="lg">
+        <Button asChild variant="secondary" size="lg">
           <Link href="/courses/new">
             <PlusIcon aria-hidden />
-            Create course
+            Teaching? Create a course
           </Link>
         </Button>
       </div>
