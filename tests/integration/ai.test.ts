@@ -333,7 +333,7 @@ describe("processing runs", () => {
     const s = await setup({ samText: "Essay [mock:invalid]" });
     const input = { assignmentId: s.assignmentId, submissionIds: [s.samSub.id] };
     await processRun(deps(), unwrap(await generate(ctx(s.alice), input)).runIds[0]!);
-    const retry = unwrap(await generate(ctx(s.alice), input));
+    const retry = unwrap(await generate(ctx(s.alice, new Date(NOW.getTime() + 60_000)), input));
     expect(retry.runIds).toHaveLength(1);
     expect((await getLatestRuns(db, [s.samSub.id])).get(s.samSub.id)).toMatchObject({
       id: retry.runIds[0],

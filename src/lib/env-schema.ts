@@ -8,7 +8,7 @@ const postgresUrl = z
 const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
 
 /** A stable Gemini Flash model that is available on the free API tier. */
-export const DEFAULT_GEMINI_MODEL = "gemini-3.8-flash";
+export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
 export const MOCK_MODEL = "mock-grader";
 
 export const serverEnvSchema = z.object({

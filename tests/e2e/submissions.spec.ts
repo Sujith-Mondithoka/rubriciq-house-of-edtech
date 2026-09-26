@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { confirmDialog, publishAssignment, signInAsDemo, uniqueSuffix } from "./helpers";
+import {
+  confirmDialog,
+  openCourseFromDashboard,
+  publishAssignment,
+  signInAsDemo,
+  uniqueSuffix,
+} from "./helpers";
 
 test("student joins, drafts with autosave, deletes a draft, submits and resubmits", async ({
   page,
@@ -79,7 +85,7 @@ test("student joins, drafts with autosave, deletes a draft, submits and resubmit
 
 test("a closed assignment is read-only for the student", async ({ page }) => {
   await signInAsDemo(page, "Student");
-  await page.getByRole("link", { name: "Academic Writing 101 (Demo)" }).click();
+  await openCourseFromDashboard(page, "Academic Writing 101 (Demo)");
   await page.getByRole("link", { name: "Reflection: peer feedback" }).click();
   await expect(page.getByText(/This assignment is closed/)).toBeVisible();
   await expect(page.getByLabel("Your answer")).toHaveCount(0);

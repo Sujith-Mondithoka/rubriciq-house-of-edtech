@@ -47,6 +47,31 @@ export async function publishAssignment(page: Page, id: string, prefix = "E2E su
   return { joinCode, assignmentUrl: page.url() };
 }
 
+/**
+ * Opens a course from the dashboard, following "Next" through the pages (12 per page, newest
+ * first), so courses created by earlier tests cannot push it out of reach.
+ */
+export async function openCourseFromDashboard(page: Page, name: string) {
+  await page.goto("/dashboard");
+  for (let i = 0; i < 20; i++) {
+    // The course list streams in after the page shell, so wait briefly instead of counting.
+    await expect(page.getByRole("heading", { name: "Your courses" })).toBeVisible();
+    const link = page.getByRole("link", { name, exact: true });
+    const found = await link
+      .waitFor({ timeout: 5_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (found) {
+      await link.click();
+      await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+      return;
+    }
+    await page.getByRole("link", { name: "Next" }).click();
+    await page.waitForURL(/page=/);
+  }
+  throw new Error(`Course "${name}" not found on the dashboard`);
+}
+
 /** Joins a course from the dashboard with a join code. */
 export async function joinCourse(page: Page, joinCode: string, courseName: string) {
   await page.getByLabel("Join code").fill(joinCode);

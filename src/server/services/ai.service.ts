@@ -68,7 +68,13 @@ export async function getLatestRuns(db: DbOrTx, submissionIds: string[]) {
     })
     .from(aiGradingRun)
     .where(inArray(aiGradingRun.submissionId, submissionIds))
-    .orderBy(aiGradingRun.submissionId, desc(aiGradingRun.createdAt), desc(aiGradingRun.id));
+    // A PENDING run is always the newest (no run can start while one is pending); it wins ties.
+    .orderBy(
+      aiGradingRun.submissionId,
+      desc(sql`${aiGradingRun.status} = 'PENDING'`),
+      desc(aiGradingRun.createdAt),
+      desc(aiGradingRun.id),
+    );
   return new Map(rows.map(({ submissionId, ...run }) => [submissionId, run]));
 }
 
