@@ -32,6 +32,8 @@ export const serverEnvSchema = z.object({
       .regex(/^[a-z0-9][a-z0-9.-]*$/, "must be a Gemini model id")
       .default(DEFAULT_GEMINI_MODEL),
   ),
+  // Authorises the daily demo-reset cron. Without it the cron endpoint always returns 401.
+  CRON_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
   // Most AI runs one course may start per UTC day.
   AI_DAILY_CAP_PER_COURSE: z.preprocess(
     emptyToUndefined,

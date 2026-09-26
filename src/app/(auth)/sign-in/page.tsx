@@ -32,6 +32,12 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
                 The demo accounts are being reset. Please try again in a minute.
               </AlertDescription>
             </Alert>
+          ) : params.error === "rate" ? (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Too many demo sign-ins from your network. Please wait a few minutes and try again.
+              </AlertDescription>
+            </Alert>
           ) : null}
           <SignInForm next={next} />
           <p className="text-sm text-muted-foreground">

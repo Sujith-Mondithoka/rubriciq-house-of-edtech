@@ -5,6 +5,10 @@ export type DemoRole = "Instructor" | "TA" | "Student";
 /** Signs in with the one-click demo button (goes through the real Server Action). */
 export async function signInAsDemo(page: Page, role: DemoRole) {
   await page.context().clearCookies();
+  // Demo sign-in is rate-limited per client IP. Tests sign in many times from one machine,
+  // so each sign-in presents its own address (Vercel sets this header itself in production).
+  const octet = () => Math.floor(Math.random() * 254) + 1;
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": `10.${octet()}.${octet()}.${octet()}` });
   await page.goto("/sign-in");
   await page.getByRole("button", { name: `Try as ${role}` }).click();
   await expect(page).toHaveURL(/\/dashboard/);

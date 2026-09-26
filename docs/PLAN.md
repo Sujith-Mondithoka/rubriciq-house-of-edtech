@@ -19,6 +19,12 @@ Permanent rules live in `/CLAUDE.md`. This document is the detailed plan behind 
    criteria/levels while DRAFT; a student's own unsubmitted draft.
 10. Phase 11 protects the demo course (see §6b), and the daily demo reset cron moves from
     Phase 12 into Phase 11.
+11. Rate limits use a fixed-window counter in Postgres (the `rate_limit` table Better Auth
+    already uses) instead of Upstash: same cross-instance guarantee, no extra service or secret.
+    Limits: every action 120/min per user, AI drafts 10 per 10 min per user, demo sign-in
+    10 per 10 min per IP; Better Auth keeps limiting email sign-in/sign-up.
+12. The CSP needs a per-request nonce, so it is set in `proxy.ts` (Next.js 16 guide); the other
+    security headers stay in `next.config.ts`. Every page renders dynamically to carry the nonce.
 
 ---
 
@@ -186,7 +192,7 @@ vercel.json                               daily cron only
 - In every action and data read: `requireUser()` → load the membership for the course that owns the
   resource (resolved from the resource, never from a client courseId) → `can(member, action,
 resource)` → otherwise `FORBIDDEN`.
-- Rate limits on sign-in and sign-up (IP + email) and on AI actions (Upstash).
+- Rate limits on sign-in and sign-up (Better Auth), demo sign-in, AI actions and every action (Postgres counter).
 - Demo accounts are seeded and reset daily by the cron job.
 
 ## 6b. Demo course protection (Phase 11)
@@ -304,7 +310,7 @@ course."
 - CI also fails if `schema.ts` changed without a generated migration.
 - Env: `DATABASE_URL` (Neon pooled), `DATABASE_URL_UNPOOLED` (direct, migrations),
   `TEST_DATABASE_URL` (local tests only), `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `AI_PROVIDER`,
-  `GOOGLE_GENERATIVE_AI_API_KEY`, `GEMINI_MODEL`, `UPSTASH_REDIS_REST_URL/TOKEN`, `CRON_SECRET`.
+  `GOOGLE_GENERATIVE_AI_API_KEY`, `GEMINI_MODEL`, `AI_DAILY_CAP_PER_COURSE`, `CRON_SECRET`.
   All validated in `lib/env.ts`.
 - `vercel.json`: one daily cron → `/api/cron/reset-demo`.
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AssignmentActions } from "@/components/assignment/assignment-actions";
 import { AssignmentStatusBadge } from "@/components/assignment/assignment-status-badge";
 import { RubricView } from "@/components/assignment/rubric-view";
+import { DisabledInDemo } from "@/components/common/disabled-in-demo";
 import { LocalDateTime } from "@/components/common/local-date-time";
 import { AiNotice } from "@/components/course/ai-notice";
 import { GradeView } from "@/components/grading/grade-view";
@@ -24,6 +25,7 @@ import {
   saveDraftAction,
   submitAction,
 } from "@/server/actions/submission.actions";
+import { isDemoLocked } from "@/server/authz/demo";
 import { loadAssignmentForMember } from "@/server/authz/load-course";
 import { can, isStaff } from "@/server/authz/policy";
 import { db } from "@/server/db";
@@ -88,6 +90,8 @@ export default async function AssignmentPage({ params }: Props) {
   const regradeClosesAt = released?.releasedAt ? regradeDeadline(released.releasedAt) : null;
 
   const canUpdate = can(member, "assignment:update", { course: state, assignment: status });
+  // Assignments of the shared demo course cannot be deleted (enforced on the server too).
+  const demoLocked = isDemoLocked(course, user.id);
   const canEditRubric = can(member, "rubric:edit", { course: state, assignment: status });
   const canDelete = can(member, "assignment:delete", {
     course: state,
@@ -136,12 +140,15 @@ export default async function AssignmentPage({ params }: Props) {
               courseId={courseId}
               assignmentId={assignment.id}
               status={assignment.status}
-              canDelete={canDelete}
+              canDelete={canDelete && !demoLocked}
               hasRubric={criteria.length > 0}
               publishAction={publishAssignmentAction}
               closeAction={closeAssignmentAction}
               deleteAction={deleteAssignmentAction}
             />
+            {canDelete && demoLocked ? (
+              <DisabledInDemo id="delete-assignment" label="Delete draft" variant="destructive" />
+            ) : null}
           </div>
         ) : null}
         {canUpdate && assignment.status === "DRAFT" && !criteria.length ? (

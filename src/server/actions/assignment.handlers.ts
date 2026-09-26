@@ -6,6 +6,7 @@ import {
   updateAssignmentSchema,
 } from "@/lib/validation/assignment.schema";
 import { authorize } from "@/server/authz/authorize";
+import { assertNotDemoLocked } from "@/server/authz/demo";
 import { can } from "@/server/authz/policy";
 import {
   closeAssignment,
@@ -85,6 +86,9 @@ export const deleteAssignmentHandler = defineHandler(assignmentRefSchema, async 
       hasSubmissions: await hasSubmissions(ctx.db, assignment.id),
     },
   });
+  // The course comes from the assignment; the shared demo course keeps its assignments.
+  const access = await getCourseAccess(ctx.db, assignment.courseId, ctx.user.id);
+  if (access) assertNotDemoLocked(access.course, ctx.user.id);
   await deleteDraftAssignment(ctx.db, ctx.user.id, assignment.id);
   return { courseId: assignment.courseId, assignmentId: assignment.id };
 });

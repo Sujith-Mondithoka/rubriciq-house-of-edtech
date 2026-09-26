@@ -6,6 +6,7 @@ import { after } from "next/server";
 import { processRuns } from "@/server/ai/grade-submission";
 import { aiConfig, getAiProvider } from "@/server/ai/provider";
 import { db } from "@/server/db";
+import { RATE_LIMITS } from "@/server/services/rate-limit.service";
 
 import { makeGenerateAiDraftsHandler } from "./ai.handlers";
 import { runAction } from "./run-action";
@@ -18,9 +19,14 @@ const generateAiDraftsHandler = makeGenerateAiDraftsHandler(aiConfig);
  * killed function leaves PENDING runs that the next page load marks STALE.
  */
 export async function generateAiDraftsAction(input: unknown) {
-  return runAction(generateAiDraftsHandler, input, ({ courseId, runIds }) => {
-    revalidatePath(`/courses/${courseId}`, "layout");
-    const provider = getAiProvider();
-    if (provider) after(() => processRuns({ db, provider }, runIds));
-  });
+  return runAction(
+    generateAiDraftsHandler,
+    input,
+    ({ courseId, runIds }) => {
+      revalidatePath(`/courses/${courseId}`, "layout");
+      const provider = getAiProvider();
+      if (provider) after(() => processRuns({ db, provider }, runIds));
+    },
+    { rateLimit: (user) => RATE_LIMITS.ai(user.id) },
+  );
 }

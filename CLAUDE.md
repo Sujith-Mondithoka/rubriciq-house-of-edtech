@@ -50,7 +50,7 @@ or unreleased drafts · courses are archived, never hard-deleted.
 
 Next.js 16 (App Router, `proxy.ts`) · TypeScript strict · Tailwind CSS + shadcn/ui (Radix) ·
 PostgreSQL (Neon) + Drizzle ORM · Better Auth (DB sessions, httpOnly cookies) · Zod +
-react-hook-form · Vercel AI SDK + `@ai-sdk/google` (Gemini Flash) · Upstash Ratelimit · Vitest ·
+react-hook-form · Vercel AI SDK + `@ai-sdk/google` (Gemini Flash) · Postgres rate limiter · Vitest ·
 Playwright + axe · pnpm · GitHub Actions · Vercel (Hobby, functions in `sin1` next to Neon
 `ap-southeast-1`). Neon branches: `main` = production, `dev` = local + previews, `test` = local
 integration tests (wiped on every run).
@@ -103,7 +103,10 @@ tests/{unit,integration,e2e,fixtures}
   actions use `requireUser()` / `getCurrentUser()`. Email sign-in/up go through the Better Auth
   HTTP handler (rate-limited), not Server Actions.
 - No raw SQL string building. No `dangerouslySetInnerHTML`; user text renders as plain text.
-- Security headers + CSP in `next.config`. Rate-limit sign-in, sign-up and AI actions.
+- Security headers in `next.config`; the nonce-based CSP in `proxy.ts`. Rate-limit sign-in,
+  sign-up (Better Auth), demo sign-in, AI actions and every Server Action (`rate-limit.service.ts`).
+- Demo accounts cannot archive the shared demo course, remove its members, delete its assignments
+  or change its settings (`authz/demo.ts`, enforced in handlers; UI shows "Disabled in the demo").
 - Env vars are validated with Zod at startup; secrets are never committed (`.env.example` only).
 - Log unexpected errors on the server with a request id; users see a generic message.
 - Every grade change, release and regrade decision writes an `audit_log` row.
