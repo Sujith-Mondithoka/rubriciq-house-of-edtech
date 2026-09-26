@@ -6,17 +6,25 @@ import { redirect } from "next/navigation";
 
 import { demoRoleSchema } from "@/lib/validation/auth.schema";
 import { auth } from "@/server/auth/auth";
+import { db } from "@/server/db";
 import { DEMO_LOGINS, DEMO_PASSWORD } from "@/server/db/demo-accounts";
+import { hitRateLimit, RATE_LIMITS } from "@/server/services/rate-limit.service";
 
 /** One-click sign-in to a seeded demo account. */
 export async function signInAsDemo(formData: FormData) {
   const role = demoRoleSchema.safeParse(formData.get("role"));
   if (!role.success) redirect("/sign-in?error=demo");
 
+  // This bypasses Better Auth's HTTP limiter, so it has its own limit per client IP.
+  const requestHeaders = await headers();
+  const ip = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const limit = await hitRateLimit(db, RATE_LIMITS.demoSignIn(ip), new Date());
+  if (!limit.ok) redirect("/sign-in?error=rate");
+
   try {
     await auth.api.signInEmail({
       body: { email: DEMO_LOGINS[role.data].email, password: DEMO_PASSWORD },
-      headers: await headers(),
+      headers: requestHeaders,
     });
   } catch (error) {
     // Demo accounts missing (not seeded) or temporarily reset.
