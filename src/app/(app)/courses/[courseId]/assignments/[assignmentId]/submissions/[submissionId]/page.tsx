@@ -5,13 +5,17 @@ import { LocalDateTime } from "@/components/common/local-date-time";
 import { AiDraftButton } from "@/components/grading/ai-draft-button";
 import { aiFailureReason } from "@/components/grading/ai-run-status";
 import { AutoRefresh } from "@/components/grading/auto-refresh";
+import { GradeHistory } from "@/components/grading/grade-history";
 import { GradeView } from "@/components/grading/grade-view";
+import { RegradeStatus } from "@/components/regrade/regrade-status";
+import { ResolveRegradeForm } from "@/components/regrade/resolve-regrade-form";
 import { GraderPanel } from "@/components/grading/grader-panel";
 import { QueueStatusBadge } from "@/components/grading/queue-status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { highlightSegments } from "@/lib/highlight";
 import { generateAiDraftsAction } from "@/server/actions/ai.actions";
 import { releaseGradesAction, saveGradeAction } from "@/server/actions/grade.actions";
+import { resolveRegradeAction } from "@/server/actions/regrade.actions";
 import { aiConfig } from "@/server/ai/provider";
 import { loadSubmissionForGrading } from "@/server/authz/load-course";
 import { can } from "@/server/authz/policy";
@@ -19,6 +23,7 @@ import { db } from "@/server/db";
 import { getLatestRuns, sweepStaleRuns } from "@/server/services/ai.service";
 import { getRubric } from "@/server/services/assignment.service";
 import { getGradeForStaff } from "@/server/services/grade.service";
+import { getGradeHistory, getRegradeForSubmission } from "@/server/services/regrade.service";
 import { getUserName } from "@/server/services/user.service";
 
 /** AI drafts started here run after the response (`after()`), within this limit. */
@@ -48,6 +53,9 @@ export default async function GraderPage({ params }: Props) {
     getLatestRuns(db, [submission.id]),
   ]);
   const run = runs.get(submission.id);
+  const regrade = grade ? await getRegradeForSubmission(db, submission.id) : null;
+  const history = grade ? await getGradeHistory(db, grade.id, regrade?.id ?? null) : [];
+  const canResolve = regrade !== null && can(member, "regrade:resolve", { course: state, regrade });
   const gradeState = grade ? { status: grade.status } : null;
   const canSave = can(member, "grade:save", { course: state, grade: gradeState });
   const canRelease = can(member, "grade:release", {
@@ -167,6 +175,30 @@ export default async function GraderPage({ params }: Props) {
                   This grade is released. It can only change through a regrade request.
                 </AlertDescription>
               </Alert>
+              {regrade ? (
+                <RegradeStatus
+                  regrade={regrade}
+                  criterionTitle={criteria.find((c) => c.id === regrade.criterionId)?.title ?? null}
+                  audience="staff"
+                />
+              ) : null}
+              {regrade && canResolve ? (
+                <ResolveRegradeForm
+                  key={grade.version}
+                  regradeId={regrade.id}
+                  version={grade.version}
+                  criteria={criteria}
+                  current={Object.fromEntries(
+                    criteria.map((c) => [
+                      c.id,
+                      grade.scores.find((s) => s.criterionId === c.id)?.levelId ?? null,
+                    ]),
+                  )}
+                  focusCriterionId={regrade.criterionId}
+                  maxScore={assignment.maxScore}
+                  action={resolveRegradeAction}
+                />
+              ) : null}
               <GradeView
                 criteria={criteria}
                 grade={grade}
@@ -210,6 +242,7 @@ export default async function GraderPage({ params }: Props) {
               </AlertDescription>
             </Alert>
           )}
+          <GradeHistory entries={history} />
         </section>
       </div>
     </div>

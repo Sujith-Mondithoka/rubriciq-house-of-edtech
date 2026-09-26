@@ -7,6 +7,8 @@ import { RubricView } from "@/components/assignment/rubric-view";
 import { LocalDateTime } from "@/components/common/local-date-time";
 import { AiNotice } from "@/components/course/ai-notice";
 import { GradeView } from "@/components/grading/grade-view";
+import { RegradeRequestForm } from "@/components/regrade/regrade-request-form";
+import { RegradeStatus } from "@/components/regrade/regrade-status";
 import { SubmissionEditor } from "@/components/submission/submission-editor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,7 @@ import {
   deleteAssignmentAction,
   publishAssignmentAction,
 } from "@/server/actions/assignment.actions";
+import { createRegradeAction } from "@/server/actions/regrade.actions";
 import {
   deleteDraftAction,
   saveDraftAction,
@@ -26,6 +29,11 @@ import { can, isStaff } from "@/server/authz/policy";
 import { db } from "@/server/db";
 import { getRubric } from "@/server/services/assignment.service";
 import { getReleasedGrade, hasGrade } from "@/server/services/grade.service";
+import {
+  countRegrades,
+  getRegradeForSubmission,
+  regradeDeadline,
+} from "@/server/services/regrade.service";
 import { countSubmissions, getOwnSubmission } from "@/server/services/submission.service";
 
 type Props = PageProps<"/courses/[courseId]/assignments/[assignmentId]">;
@@ -51,6 +59,8 @@ export default async function AssignmentPage({ params }: Props) {
     staff ? null : getOwnSubmission(db, assignment.id, user.id),
   ]);
   const summary = counts?.get(assignment.id) ?? { submitted: 0, late: 0, drafts: 0 };
+  const regradeCounts =
+    staff && assignment.status !== "DRAFT" ? await countRegrades(db, assignment.id) : null;
   // The student sees a grade only once it is released; a draft grade just freezes their work.
   const ownSubmitted = own?.status === "SUBMITTED" ? own : null;
   const [released, gradingStarted] = ownSubmitted
@@ -63,6 +73,19 @@ export default async function AssignmentPage({ params }: Props) {
       submission: { studentId: user.id },
       grade: { status: "RELEASED" },
     });
+  const regrade =
+    canViewGrade && ownSubmitted ? await getRegradeForSubmission(db, ownSubmitted.id) : null;
+  const canRequestRegrade =
+    canViewGrade &&
+    released !== null &&
+    can(member, "regrade:create", {
+      course: state,
+      submission: { studentId: user.id },
+      grade: { status: "RELEASED", releasedAt: released.releasedAt },
+      hasExistingRequest: regrade !== null,
+      now,
+    });
+  const regradeClosesAt = released?.releasedAt ? regradeDeadline(released.releasedAt) : null;
 
   const canUpdate = can(member, "assignment:update", { course: state, assignment: status });
   const canEditRubric = can(member, "rubric:edit", { course: state, assignment: status });
@@ -132,9 +155,16 @@ export default async function AssignmentPage({ params }: Props) {
             <h3 id="submissions-summary-heading" className="font-medium">
               Submissions
             </h3>
-            <Button asChild size="lg">
-              <Link href={`${base}/submissions`}>Open grading queue</Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="lg">
+                <Link href={`${base}/submissions`}>Open grading queue</Link>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <Link href={`${base}/regrades`}>
+                  Regrade requests ({regradeCounts?.OPEN ?? 0} open)
+                </Link>
+              </Button>
+            </div>
           </div>
           <dl className="grid grid-cols-3 gap-3 text-center">
             {(
@@ -177,7 +207,40 @@ export default async function AssignmentPage({ params }: Props) {
             Your grade
           </h3>
           {canViewGrade && released ? (
-            <GradeView criteria={criteria} grade={released} maxScore={assignment.maxScore} />
+            <>
+              <GradeView criteria={criteria} grade={released} maxScore={assignment.maxScore} />
+              {regrade ? (
+                <RegradeStatus
+                  regrade={regrade}
+                  criterionTitle={criteria.find((c) => c.id === regrade.criterionId)?.title ?? null}
+                  audience="student"
+                />
+              ) : canRequestRegrade && ownSubmitted ? (
+                <div className="grid gap-2">
+                  <h4 className="font-medium">Disagree with a score?</h4>
+                  <p className="text-sm text-muted-foreground">
+                    You can ask for one regrade
+                    {regradeClosesAt ? (
+                      <>
+                        {" "}
+                        until <LocalDateTime iso={regradeClosesAt.toISOString()} />
+                      </>
+                    ) : null}
+                    .
+                  </p>
+                  <RegradeRequestForm
+                    submissionId={ownSubmitted.id}
+                    criteria={criteria.map((c) => ({ id: c.id, title: c.title }))}
+                    action={createRegradeAction}
+                  />
+                </div>
+              ) : regradeClosesAt && now > regradeClosesAt ? (
+                <p className="text-sm text-muted-foreground">
+                  The regrade window closed on <LocalDateTime iso={regradeClosesAt.toISOString()} />
+                  .
+                </p>
+              ) : null}
+            </>
           ) : (
             <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
               Not released yet. Your grade and feedback appear here once your teacher releases them.
