@@ -243,8 +243,8 @@ for the next.
 1. A grader clicks Generate. The server checks: role, `course.ai_enabled`, daily cap, and that no
    active run exists.
 2. The server creates PENDING runs and processes them in `after()`, at most 3 at a time.
-3. Each run calls Gemini Flash via `@ai-sdk/google` (default `gemini-3.8-flash`, a stable model on
-   the free tier) with a Zod schema:
+3. Each run calls Gemini Flash via `@ai-sdk/google` (default `gemini-3.5-flash-lite`, a stable model on
+   the free tier; `gemini-3.8-flash` returned 503s under load in the smoke test) with a Zod schema:
    `{ criteria: [{ criterionId, levelId, feedback, evidence[], confidence }], overallFeedback }`.
    AI SDK 7 deprecates `generateObject`; its replacement `generateText` + `Output.object` is used,
    with the same schema-constrained output.
