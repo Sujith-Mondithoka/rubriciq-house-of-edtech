@@ -51,7 +51,9 @@ or unreleased drafts · courses are archived, never hard-deleted.
 Next.js 16 (App Router, `proxy.ts`) · TypeScript strict · Tailwind CSS + shadcn/ui (Radix) ·
 PostgreSQL (Neon) + Drizzle ORM · Better Auth (DB sessions, httpOnly cookies) · Zod +
 react-hook-form · Vercel AI SDK + `@ai-sdk/google` (Gemini Flash) · Upstash Ratelimit · Vitest ·
-Playwright + axe · pnpm · GitHub Actions · Vercel (Hobby).
+Playwright + axe · pnpm · GitHub Actions · Vercel (Hobby, functions in `sin1` next to Neon
+`ap-southeast-1`). Neon branches: `main` = production, `dev` = local + previews, `test` = local
+integration tests (wiped on every run).
 Next.js 16 changed several APIs — read the version-matched guides in `node_modules/next/dist/docs/`
 (see `AGENTS.md`) before using routing, caching or proxy APIs.
 
@@ -77,7 +79,9 @@ tests/{unit,integration,e2e,fixtures}
 ## Database rules
 
 - Schema changes only via Drizzle migrations committed to the repo; never edit an applied migration.
-- UUID primary keys, `created_at`/`updated_at` on every table, all timestamps UTC.
+- UUID primary keys, `created_at`/`updated_at` on every table, all timestamps UTC. Exception:
+  Better Auth tables (`user`, `session`, `account`, `verification`) use Better Auth's text ids.
+- Seed and demo reset touch only rows owned by the fixed demo user ids (`src/server/db/demo-seed.ts`).
 - Multi-row writes (grade + criterion scores, bulk release) run in one transaction.
 - `grade.version` implements optimistic locking; a stale save returns `CONFLICT`.
 - Derived values (total_score, max_score, is_late, word_count) are computed on the server only.
