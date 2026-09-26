@@ -187,13 +187,17 @@ export function GraderPanel({
     toast.success(`Grade saved (${result.data.totalScore} / ${maxScore})`);
   });
 
+  // An AI draft nobody has saved yet: a person must save it (even unchanged) before release.
+  const unreviewedDraft = version > 0 && !reviewed;
   const releaseBlocker = isDirty
     ? "Save your changes before releasing."
-    : !version || !reviewed
-      ? "Save the grade before releasing."
-      : missing.length
-        ? `Score every criterion before releasing (${missing.length} left).`
-        : null;
+    : unreviewedDraft
+      ? "Accept and save the AI draft before releasing."
+      : !version
+        ? "Save the grade before releasing."
+        : missing.length
+          ? `Score every criterion before releasing (${missing.length} left).`
+          : null;
 
   return (
     <form onSubmit={onSave} noValidate className="grid gap-4" aria-label="Grade">
@@ -342,10 +346,16 @@ export function GraderPanel({
           <Button
             type="submit"
             size="lg"
-            disabled={isSubmitting || (!isDirty && version > 0)}
+            // Unchanged saves are pointless once a person has reviewed the grade, but an
+            // unreviewed AI draft must be savable as-is (that is how a teacher accepts it).
+            disabled={isSubmitting || (!isDirty && version > 0 && reviewed)}
             aria-busy={isSubmitting}
           >
-            {isSubmitting ? "Saving…" : "Save grade"}
+            {isSubmitting
+              ? "Saving…"
+              : unreviewedDraft && !isDirty
+                ? "Accept and save"
+                : "Save grade"}
           </Button>
           {canRelease ? (
             <ConfirmDialog
