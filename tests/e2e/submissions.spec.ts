@@ -1,30 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import { confirmDialog, localDateTime, signInAsDemo, uniqueSuffix } from "./helpers";
-
-/** Instructor sets up a course with one published assignment; returns its URL and join code. */
-async function publishAssignment(page: Page, id: string) {
-  await signInAsDemo(page, "Instructor");
-  await page.getByRole("link", { name: "Teaching? Create a course" }).click();
-  await page.getByLabel("Course name").fill(`E2E submit ${id}`);
-  await page.getByRole("button", { name: "Create course" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: `E2E submit ${id}` })).toBeVisible();
-  const joinCode = (await page.getByText(/^[A-Z0-9]{8}$/).textContent())!.trim();
-
-  await page.getByRole("link", { name: "New assignment" }).click();
-  await page.getByLabel("Title").fill(`Reflection ${id}`);
-  await page.getByLabel("Instructions").fill("Reflect on this week.");
-  await page.getByLabel("Due date and time").fill(localDateTime(2));
-  await page.getByRole("button", { name: "Create and add rubric" }).click();
-  await expect(page.getByRole("heading", { name: `Rubric for Reflection ${id}` })).toBeVisible();
-  await page.getByLabel("Title").first().fill("Insight");
-  await page.getByRole("button", { name: "Save rubric" }).click();
-  await expect(page.getByText("Total: 10 points")).toBeVisible();
-  await page.getByRole("button", { name: "Publish" }).click();
-  await confirmDialog(page, "Publish");
-  await expect(page.getByText("Assignment published")).toBeVisible();
-  return { joinCode, assignmentUrl: page.url() };
-}
+import { confirmDialog, publishAssignment, signInAsDemo, uniqueSuffix } from "./helpers";
 
 test("student joins, drafts with autosave, deletes a draft, submits and resubmits", async ({
   page,
