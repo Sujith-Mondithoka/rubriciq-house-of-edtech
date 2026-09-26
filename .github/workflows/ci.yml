@@ -106,10 +106,69 @@ jobs:
       - name: Integration tests
         run: pnpm test:integration
 
+  e2e:
+    name: End-to-end tests (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rubriciq_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    # A throwaway database and secret; the AI provider is the mock (never the real API).
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rubriciq_e2e
+      DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/rubriciq_e2e
+      BETTER_AUTH_SECRET: ci-e2e-only-secret-not-used-anywhere-else
+      BETTER_AUTH_URL: http://localhost:3100
+      AI_PROVIDER: mock
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Apply migrations
+        run: pnpm db:migrate
+
+      - name: Build
+        run: pnpm build
+
+      # Global setup seeds the demo data; tests run on desktop and at 360 px, with axe checks.
+      - name: End-to-end tests
+        run: pnpm test:e2e
+
+      - name: Upload traces and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
+
   deploy:
     name: Migrate and deploy to production
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [verify, integration]
+    needs: [verify, integration, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
