@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RubricIQ
 
-## Getting Started
+Rubric-based grading with AI-drafted feedback. Teachers build a rubric, students submit written
+work, AI drafts a score, feedback and quoted evidence for each criterion, and a teacher reviews
+and releases every grade.
 
-First, run the development server:
+Built for the House of Edtech Full-stack Developer assignment by
+[Sujith Mondithoka](https://github.com/Sujith-Mondithoka).
+
+> **Status:** in development. Phase 0 (project setup) is complete. See the build phases in
+> [`docs/PLAN.md`](docs/PLAN.md#11-build-phases).
+
+## Tech stack
+
+Next.js 16 (App Router) · TypeScript (strict) · Tailwind CSS v4 + shadcn/ui (Radix) · Vitest ·
+GitHub Actions · Vercel. Planned: PostgreSQL (Neon) + Drizzle, Better Auth, Vercel AI SDK with
+Google Gemini, Playwright.
+
+## Getting started
+
+Requirements: Node.js 24 and pnpm 12.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Script               | What it does                       |
+| -------------------- | ---------------------------------- |
+| `pnpm dev`           | Start the dev server               |
+| `pnpm build`         | Production build                   |
+| `pnpm lint`          | ESLint (fails on warnings)         |
+| `pnpm typecheck`     | Generate route types and run `tsc` |
+| `pnpm format`        | Format with Prettier               |
+| `pnpm test`          | Unit and component tests (Vitest)  |
+| `pnpm test:coverage` | Tests with a coverage report       |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project docs
 
-## Learn More
+- [`CLAUDE.md`](CLAUDE.md): permanent project rules (scope, roles, security, testing, Definition of Done)
+- [`docs/PLAN.md`](docs/PLAN.md): full plan: journeys, database, AI design, testing, deployment, known weak points
 
-To learn more about Next.js, take a look at the following resources:
+## CI/CD
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Every pull request runs format check, lint, typecheck, tests and a production build on GitHub
+Actions. Each build phase is developed on its own branch and merged through a pull request once CI
+passes.

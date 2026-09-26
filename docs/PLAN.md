@@ -23,6 +23,7 @@ Permanent rules live in `/CLAUDE.md`. This document is the detailed plan behind 
 ## 1. Scope
 
 **In v1**
+
 - Email/password accounts; seeded demo Instructor, TA and Student with one-click demo login.
 - Courses with a join code; per-course roles.
 - Assignments: DRAFT → PUBLISHED → CLOSED, deadline, allow-late flag.
@@ -45,22 +46,22 @@ review, rubric templates, realtime updates, social login, i18n.
 
 Roles are per course. Whoever creates a course becomes its Instructor. No platform admin in v1.
 
-| Action | Instructor | TA | Student |
-|---|:-:|:-:|:-:|
-| Edit/archive course, regenerate join code, toggle AI | ✅ | ❌ | ❌ |
-| Add/remove TAs, remove students | ✅ | ❌ | ❌ |
-| Create/edit assignment & rubric (rubric only while DRAFT) | ✅ | ❌ | ❌ |
-| Hard-delete DRAFT assignment (no submissions) / rubric items (DRAFT) | ✅ | ❌ | ❌ |
-| View published assignment + rubric | ✅ | ✅ | ✅ |
-| Create/edit own submission (until deadline); delete own unsubmitted draft | ❌ | ❌ | ✅ |
-| View submissions | ✅ all | ✅ all | own only |
-| Run AI drafts (if course AI is on) | ✅ | ✅ | ❌ |
-| Score + save grade draft | ✅ | ✅ | ❌ |
-| **Release grades** | ✅ | ❌ | ❌ |
-| View grade | ✅ | ✅ | only when RELEASED |
-| Raise regrade (once per grade, ≤ 7 days after release) | ❌ | ❌ | ✅ |
-| Resolve regrade | ✅ | ❌ | ❌ |
-| View analytics | ✅ | ✅ | ❌ |
+| Action                                                                    | Instructor |   TA   |      Student       |
+| ------------------------------------------------------------------------- | :--------: | :----: | :----------------: |
+| Edit/archive course, regenerate join code, toggle AI                      |     ✅     |   ❌   |         ❌         |
+| Add/remove TAs, remove students                                           |     ✅     |   ❌   |         ❌         |
+| Create/edit assignment & rubric (rubric only while DRAFT)                 |     ✅     |   ❌   |         ❌         |
+| Hard-delete DRAFT assignment (no submissions) / rubric items (DRAFT)      |     ✅     |   ❌   |         ❌         |
+| View published assignment + rubric                                        |     ✅     |   ✅   |         ✅         |
+| Create/edit own submission (until deadline); delete own unsubmitted draft |     ❌     |   ❌   |         ✅         |
+| View submissions                                                          |   ✅ all   | ✅ all |      own only      |
+| Run AI drafts (if course AI is on)                                        |     ✅     |   ✅   |         ❌         |
+| Score + save grade draft                                                  |     ✅     |   ✅   |         ❌         |
+| **Release grades**                                                        |     ✅     |   ❌   |         ❌         |
+| View grade                                                                |     ✅     |   ✅   | only when RELEASED |
+| Raise regrade (once per grade, ≤ 7 days after release)                    |     ❌     |   ❌   |         ✅         |
+| Resolve regrade                                                           |     ✅     |   ❌   |         ❌         |
+| View analytics                                                            |     ✅     |   ✅   |         ❌         |
 
 Hard rules: released grades change only via a regrade (audited); students never see AI
 confidence or unreleased drafts; courses are archived, never hard-deleted.
@@ -68,6 +69,7 @@ confidence or unreleased drafts; courses are archived, never hard-deleted.
 ## 3. User journeys
 
 **A. Instructor sets up an assignment**
+
 1. Sign up → create a course (join code generated; AI on by default, can be switched off).
 2. Share the join code; optionally add a TA by email (they must already have an account).
 3. Create an assignment: title, instructions, due date/time, allow late.
@@ -75,6 +77,7 @@ confidence or unreleased drafts; courses are archived, never hard-deleted.
 5. Preview as a student → Publish. The rubric is now locked.
 
 **B. Student submits and gets feedback**
+
 1. Sign up → enter the join code → see assignments with deadlines.
 2. Open an assignment; read the instructions, the rubric and the AI notice.
 3. Write (autosaved draft) → Submit. Can edit and resubmit until the deadline.
@@ -82,6 +85,7 @@ confidence or unreleased drafts; courses are archived, never hard-deleted.
 5. Optionally raise a regrade request on a criterion, with a reason.
 
 **C. Grading**
+
 1. Instructor/TA opens the submissions queue (filters: not submitted, submitted, AI drafted,
    reviewed, released). Loading the queue marks stale PENDING runs as FAILED.
 2. "Generate AI drafts" (hidden if course AI is off) → each row shows Pending → Drafted / Failed (polling).
@@ -91,11 +95,13 @@ confidence or unreleased drafts; courses are archived, never hard-deleted.
 5. Instructor releases grades one at a time or in bulk (with a confirmation step).
 
 **D. AI failure**
+
 1. A run fails (timeout, provider error, invalid output, daily cap, or stale).
 2. The row shows "AI draft failed — Retry or grade manually".
 3. Manual grading works exactly the same, without suggestions.
 
 **E. Regrade**
+
 1. The Instructor sees open requests in the regrade queue.
 2. Adjusts the score (audited) or leaves it; resolves with a response.
 3. The student sees the outcome.
@@ -113,18 +119,18 @@ user ─┬─< session / account              (Better Auth tables)
 audit_log (actor_id, action, entity_type, entity_id, metadata jsonb, created_at)
 ```
 
-| Table | Key columns / constraints |
-|---|---|
-| `course` | name, description, `join_code` unique, **`ai_enabled` bool default true**, created_by, archived_at |
-| `course_member` | course_id, user_id, `role` (INSTRUCTOR, TA, STUDENT); unique (course_id, user_id) |
-| `assignment` | course_id, title, instructions, `due_at` UTC, allow_late, `status` (DRAFT, PUBLISHED, CLOSED), max_score, deleted_at |
-| `rubric_criterion` | assignment_id, title, description, position |
-| `rubric_level` | criterion_id, label, points ≥ 0, descriptor, position; unique (criterion_id, points) |
-| `submission` | assignment_id, student_id, content (≤ 20,000 chars), word_count, `status` (DRAFT, SUBMITTED), submitted_at, is_late; unique (assignment_id, student_id) |
-| `ai_grading_run` | submission_id, `status` (PENDING, SUCCEEDED, FAILED), error_code (TIMEOUT, PROVIDER, INVALID_OUTPUT, CAP, STALE), model, prompt_version, input/output tokens, raw_output jsonb, started_at, finished_at |
-| `grade` | submission_id unique, `status` (DRAFT, RELEASED), total_score, overall_feedback, graded_by, released_by, released_at, `version` int |
-| `criterion_score` | grade_id, criterion_id, level_id, points, feedback, `source` (AI, HUMAN, AI_EDITED), ai_confidence, ai_evidence jsonb; unique (grade_id, criterion_id) |
-| `regrade_request` | grade_id, criterion_id nullable, reason, `status` (OPEN, ACCEPTED, REJECTED), response, resolved_by |
+| Table              | Key columns / constraints                                                                                                                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `course`           | name, description, `join_code` unique, **`ai_enabled` bool default true**, created_by, archived_at                                                                                                      |
+| `course_member`    | course_id, user_id, `role` (INSTRUCTOR, TA, STUDENT); unique (course_id, user_id)                                                                                                                       |
+| `assignment`       | course_id, title, instructions, `due_at` UTC, allow_late, `status` (DRAFT, PUBLISHED, CLOSED), max_score, deleted_at                                                                                    |
+| `rubric_criterion` | assignment_id, title, description, position                                                                                                                                                             |
+| `rubric_level`     | criterion_id, label, points ≥ 0, descriptor, position; unique (criterion_id, points)                                                                                                                    |
+| `submission`       | assignment_id, student_id, content (≤ 20,000 chars), word_count, `status` (DRAFT, SUBMITTED), submitted_at, is_late; unique (assignment_id, student_id)                                                 |
+| `ai_grading_run`   | submission_id, `status` (PENDING, SUCCEEDED, FAILED), error_code (TIMEOUT, PROVIDER, INVALID_OUTPUT, CAP, STALE), model, prompt_version, input/output tokens, raw_output jsonb, started_at, finished_at |
+| `grade`            | submission_id unique, `status` (DRAFT, RELEASED), total_score, overall_feedback, graded_by, released_by, released_at, `version` int                                                                     |
+| `criterion_score`  | grade_id, criterion_id, level_id, points, feedback, `source` (AI, HUMAN, AI_EDITED), ai_confidence, ai_evidence jsonb; unique (grade_id, criterion_id)                                                  |
+| `regrade_request`  | grade_id, criterion_id nullable, reason, `status` (OPEN, ACCEPTED, REJECTED), response, resolved_by                                                                                                     |
 
 Deletes: courses are archived and published assignments are soft-deleted. Hard delete only for a
 DRAFT assignment with no submissions, rubric criteria/levels while the assignment is DRAFT
@@ -177,7 +183,7 @@ vercel.json                               daily cron only
 - `proxy.ts`: redirect signed-out users away from `(app)` routes only (optimistic check).
 - In every action and data read: `requireUser()` → load the membership for the course that owns the
   resource (resolved from the resource, never from a client courseId) → `can(member, action,
-  resource)` → otherwise `FORBIDDEN`.
+resource)` → otherwise `FORBIDDEN`.
 - Rate limits on sign-in and sign-up (IP + email) and on AI actions (Upstash).
 - Demo accounts are seeded and reset daily by the cron job.
 
@@ -207,6 +213,7 @@ vercel.json                               daily cron only
 **Use:** per-criterion draft scores and feedback only.
 
 **Flow:**
+
 1. A grader clicks Generate. The server checks: role, `course.ai_enabled`, daily cap, and that no
    active run exists.
 2. The server creates PENDING runs and processes them in `after()`, at most 3 at a time.
@@ -222,14 +229,14 @@ data; the output is schema-constrained; humans release.
 
 **Failures:**
 
-| Failure | Handling |
-|---|---|
+| Failure                              | Handling                                                        |
+| ------------------------------------ | --------------------------------------------------------------- |
 | Timeout (30 s) / 5xx / network error | 1 retry with backoff → FAILED (TIMEOUT/PROVIDER) + Retry button |
-| Schema mismatch | FAILED (INVALID_OUTPUT), raw output stored |
-| Daily cap / rate limit | Not started; a message explains why |
-| Function killed, run stuck | On queue or submission load, PENDING > 5 min → FAILED (STALE) |
-| Late result after STALE | Ignored (conditional update matches 0 rows) |
-| No API key / `ai_enabled = false` | AI UI hidden; server rejects AI actions |
+| Schema mismatch                      | FAILED (INVALID_OUTPUT), raw output stored                      |
+| Daily cap / rate limit               | Not started; a message explains why                             |
+| Function killed, run stuck           | On queue or submission load, PENDING > 5 min → FAILED (STALE)   |
+| Late result after STALE              | Ignored (conditional update matches 0 rows)                     |
+| No API key / `ai_enabled = false`    | AI UI hidden; server rejects AI actions                         |
 
 In every case manual grading keeps working.
 
@@ -268,21 +275,21 @@ course."
 
 ## 11. Build phases
 
-| # | Phase | Done when |
-|---|---|---|
-| 0 | Next 16 + strict TS + Tailwind + shadcn + ESLint/Prettier + Vitest + footer + basic CI; deploy to Vercel | Live URL with footer; CI green |
-| 1 | Drizzle + Neon, full schema, migrations, seed | `db:migrate` + `db:seed` work locally and in CI |
-| 2 | Better Auth, `proxy.ts`, `requireUser`, demo login | Sign in works in production |
-| 3 | `policy.ts` + unit tests | Permission table passes as tests |
-| 4 | Courses: create, join by code, members, add TA, archive, AI toggle | Cross-course access tests pass |
-| 5 | Assignments CRUD, rubric builder, publish/close, rubric lock, safe hard deletes | Validation, lock and delete-condition tests pass |
-| 6 | Submissions: autosaved draft, submit, deadline/late, delete own draft, AI notice | Journey B through submit works |
-| 7 | Manual grading: queue, split view, save with optimistic lock, release, student grade view | Journey C works without AI |
-| 8 | AI: provider switch, Gemini + mock, postprocess, runs, bulk, retry, cap, stale sweep | AI integration tests pass |
-| 9 | Regrade requests + audit log | Journey E works |
-| 10 | Analytics page | Correct numbers on seeded data |
-| 11 | Hardening: rate limits, CSP, error boundaries, loading/empty states, a11y pass | No serious axe issues |
-| 12 | Full Playwright suite in CI, README (architecture, security, contingency), demo reset cron | CI green; README complete |
+| #   | Phase                                                                                                    | Done when                                        |
+| --- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| 0   | Next 16 + strict TS + Tailwind + shadcn + ESLint/Prettier + Vitest + footer + basic CI; deploy to Vercel | Live URL with footer; CI green                   |
+| 1   | Drizzle + Neon, full schema, migrations, seed                                                            | `db:migrate` + `db:seed` work locally and in CI  |
+| 2   | Better Auth, `proxy.ts`, `requireUser`, demo login                                                       | Sign in works in production                      |
+| 3   | `policy.ts` + unit tests                                                                                 | Permission table passes as tests                 |
+| 4   | Courses: create, join by code, members, add TA, archive, AI toggle                                       | Cross-course access tests pass                   |
+| 5   | Assignments CRUD, rubric builder, publish/close, rubric lock, safe hard deletes                          | Validation, lock and delete-condition tests pass |
+| 6   | Submissions: autosaved draft, submit, deadline/late, delete own draft, AI notice                         | Journey B through submit works                   |
+| 7   | Manual grading: queue, split view, save with optimistic lock, release, student grade view                | Journey C works without AI                       |
+| 8   | AI: provider switch, Gemini + mock, postprocess, runs, bulk, retry, cap, stale sweep                     | AI integration tests pass                        |
+| 9   | Regrade requests + audit log                                                                             | Journey E works                                  |
+| 10  | Analytics page                                                                                           | Correct numbers on seeded data                   |
+| 11  | Hardening: rate limits, CSP, error boundaries, loading/empty states, a11y pass                           | No serious axe issues                            |
+| 12  | Full Playwright suite in CI, README (architecture, security, contingency), demo reset cron               | CI green; README complete                        |
 
 Cut order under time pressure: Phase 10, then Phase 9. The audit log for grade changes and
 releases moves into Phase 7 if Phase 9 is cut.
