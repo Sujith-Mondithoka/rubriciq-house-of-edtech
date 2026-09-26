@@ -1,8 +1,18 @@
+import { verifyPassword } from "better-auth/crypto";
 import { count, eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
+import { DEMO_PASSWORD } from "@/server/db/demo-accounts";
 import { DEMO_JOIN_CODE, DEMO_USERS, resetDemoData } from "@/server/db/demo-seed";
-import { assignment, course, courseMember, grade, submission, user } from "@/server/db/schema";
+import {
+  account,
+  assignment,
+  course,
+  courseMember,
+  grade,
+  submission,
+  user,
+} from "@/server/db/schema";
 
 import { createCourse, createUser } from "../fixtures/factories";
 import { createTestDb, truncateAll } from "./helpers/test-db";
@@ -47,6 +57,20 @@ describe("resetDemoData", () => {
 
     const [released] = await db.select().from(grade);
     expect(released).toMatchObject({ status: "RELEASED", totalScore: 15 });
+  });
+
+  it("gives every demo user a credential account with a hashed password", async () => {
+    await resetDemoData(db);
+    const accounts = await db.select().from(account);
+
+    expect(accounts).toHaveLength(Object.keys(DEMO_USERS).length);
+    for (const row of accounts) {
+      expect(row.providerId).toBe("credential");
+      expect(row.password).not.toBe(DEMO_PASSWORD);
+      await expect(verifyPassword({ hash: row.password!, password: DEMO_PASSWORD })).resolves.toBe(
+        true,
+      );
+    }
   });
 
   it("is idempotent", async () => {

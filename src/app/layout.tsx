@@ -30,9 +30,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           Skip to main content
         </a>
-        <main id="main" className="flex flex-1 flex-col">
-          {children}
-        </main>
+        {/* Each route group renders its own <header> and <main id="main">. */}
+        <div className="flex flex-1 flex-col">{children}</div>
         <SiteFooter />
       </body>
     </html>

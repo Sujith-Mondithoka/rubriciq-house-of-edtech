@@ -1,3 +1,4 @@
+import { DemoLoginButtons } from "@/components/auth/demo-login-buttons";
 import { siteConfig } from "@/lib/site";
 
 const steps = [
@@ -19,7 +20,6 @@ export default function HomePage() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-12 px-4 py-16 sm:py-24">
       <section aria-labelledby="hero-heading" className="flex flex-col gap-4">
-        <p className="text-sm font-medium text-muted-foreground">{siteConfig.name}</p>
         <h1
           id="hero-heading"
           className="max-w-2xl text-3xl font-semibold tracking-tight text-balance sm:text-5xl"
@@ -27,6 +27,21 @@ export default function HomePage() {
           Faster, fairer feedback on written work.
         </h1>
         <p className="max-w-2xl text-lg text-muted-foreground">{siteConfig.description}</p>
+      </section>
+
+      <section
+        aria-labelledby="demo-heading"
+        className="flex flex-col gap-4 rounded-xl border bg-card p-5"
+      >
+        <div>
+          <h2 id="demo-heading" className="text-xl font-semibold">
+            Try it in one click
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Sign in to a demo course with essays at every stage of grading.
+          </p>
+        </div>
+        <DemoLoginButtons />
       </section>
 
       <section aria-labelledby="how-heading" className="flex flex-col gap-6">

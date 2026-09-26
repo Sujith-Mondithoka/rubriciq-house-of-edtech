@@ -62,8 +62,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
 
+      # Placeholders only: no page reads the database or auth at build time.
       - name: Build
         run: pnpm build
+        env:
+          DATABASE_URL: postgresql://build:build@localhost:5432/build
+          BETTER_AUTH_SECRET: ci-build-placeholder-secret-not-used-at-runtime
 
   integration:
     name: Integration tests (Postgres)

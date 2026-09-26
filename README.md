@@ -9,14 +9,35 @@ Built for the House of Edtech Full-stack Developer assignment by
 
 **Live:** https://rubriciq-house-of-edtech.vercel.app
 
-> **Status:** in development. Phases 0–1 (setup, database) are complete. See the build phases
-> in [`docs/PLAN.md`](docs/PLAN.md#11-build-phases).
+> **Status:** in development. Phases 0–2 (setup, database, auth + demo login) are complete. See
+> the build phases in [`docs/PLAN.md`](docs/PLAN.md#11-build-phases).
+
+## Demo
+
+Use the **Try as Instructor / TA / Student** buttons on the home or sign-in page, or sign in
+manually with password `rubriciq-demo-2026`:
+
+| Role       | Email                      |
+| ---------- | -------------------------- |
+| Instructor | `instructor@rubriciq.demo` |
+| TA         | `ta@rubriciq.demo`         |
+| Student    | `student1@rubriciq.demo`   |
 
 ## Tech stack
 
 Next.js 16 (App Router) · TypeScript (strict) · Tailwind CSS v4 + shadcn/ui (Radix) ·
-PostgreSQL (Neon) + Drizzle ORM · Zod · Vitest · GitHub Actions · Vercel. Planned: Better Auth,
-Vercel AI SDK with Google Gemini, Playwright.
+PostgreSQL (Neon) + Drizzle ORM · Better Auth · Zod · React Hook Form · Vitest · GitHub Actions ·
+Vercel. Planned: Vercel AI SDK with Google Gemini, Playwright.
+
+## Authentication
+
+- Better Auth with email and password; sessions stored in Postgres, sent as httpOnly cookies.
+- `src/proxy.ts` only redirects visitors without a session cookie (optimistic). Every protected
+  page and action calls `requireUser()` (`src/server/auth/session.ts`), which checks the session
+  in the database.
+- Sign-up input is validated twice: in the form and again on the server with the same Zod schema.
+- Rate limits (stored in Postgres): 5 sign-in attempts per minute and 5 sign-ups per hour per IP.
+- Redirects after sign-in accept same-site paths only (no open redirects).
 
 ## Getting started
 
