@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   index,
@@ -107,6 +108,14 @@ export const verification = pgTable(
   },
   (t) => [index("verification_identifier_idx").on(t.identifier)],
 );
+
+// Better Auth rate limiting, stored in Postgres so limits hold across serverless instances.
+export const rateLimit = pgTable("rate_limit", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+});
 
 // ---------------------------------------------------------------------------
 // Courses
