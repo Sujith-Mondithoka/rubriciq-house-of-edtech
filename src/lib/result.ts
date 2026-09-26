@@ -14,6 +14,9 @@ export type Result<T> =
   | { ok: true; data: T }
   | { ok: false; code: ErrorCode; message: string; fieldErrors?: FieldErrors };
 
+/** A Server Action as client components receive it (passed down as a prop). */
+export type ServerAction<T> = (input: unknown) => Promise<Result<T>>;
+
 export function ok<T>(data: T): Result<T> {
   return { ok: true, data };
 }
