@@ -26,22 +26,22 @@ validation or authorization to save time.
 
 ## Roles & permissions (per course; course creator = Instructor)
 
-| Action | Instructor | TA | Student |
-|---|:-:|:-:|:-:|
-| Edit/archive course, regenerate join code, toggle AI | ✅ | ❌ | ❌ |
-| Add/remove TAs, remove students | ✅ | ❌ | ❌ |
-| Create/edit assignment & rubric (rubric only while DRAFT) | ✅ | ❌ | ❌ |
-| Hard-delete DRAFT assignment (no submissions) / rubric items (DRAFT) | ✅ | ❌ | ❌ |
-| View published assignment + rubric | ✅ | ✅ | ✅ |
-| Create/edit own submission (until deadline); delete own unsubmitted draft | ❌ | ❌ | ✅ |
-| View submissions | ✅ all | ✅ all | own only |
-| Run AI drafts (if course AI is on) | ✅ | ✅ | ❌ |
-| Score + save grade draft | ✅ | ✅ | ❌ |
-| **Release grades** | ✅ | ❌ | ❌ |
-| View grade | ✅ | ✅ | only when RELEASED |
-| Raise regrade (once per grade, ≤ 7 days after release) | ❌ | ❌ | ✅ |
-| Resolve regrade | ✅ | ❌ | ❌ |
-| View analytics | ✅ | ✅ | ❌ |
+| Action                                                                    | Instructor |   TA   |      Student       |
+| ------------------------------------------------------------------------- | :--------: | :----: | :----------------: |
+| Edit/archive course, regenerate join code, toggle AI                      |     ✅     |   ❌   |         ❌         |
+| Add/remove TAs, remove students                                           |     ✅     |   ❌   |         ❌         |
+| Create/edit assignment & rubric (rubric only while DRAFT)                 |     ✅     |   ❌   |         ❌         |
+| Hard-delete DRAFT assignment (no submissions) / rubric items (DRAFT)      |     ✅     |   ❌   |         ❌         |
+| View published assignment + rubric                                        |     ✅     |   ✅   |         ✅         |
+| Create/edit own submission (until deadline); delete own unsubmitted draft |     ❌     |   ❌   |         ✅         |
+| View submissions                                                          |   ✅ all   | ✅ all |      own only      |
+| Run AI drafts (if course AI is on)                                        |     ✅     |   ✅   |         ❌         |
+| Score + save grade draft                                                  |     ✅     |   ✅   |         ❌         |
+| **Release grades**                                                        |     ✅     |   ❌   |         ❌         |
+| View grade                                                                |     ✅     |   ✅   | only when RELEASED |
+| Raise regrade (once per grade, ≤ 7 days after release)                    |     ❌     |   ❌   |         ✅         |
+| Resolve regrade                                                           |     ✅     |   ❌   |         ❌         |
+| View analytics                                                            |     ✅     |   ✅   |         ❌         |
 
 Hard rules: released grades change only via a regrade (audited) · students never see AI confidence
 or unreleased drafts · courses are archived, never hard-deleted.
@@ -152,6 +152,7 @@ tests/{unit,integration,e2e,fixtures}
 ## Commits
 
 Conventional Commits (`feat:`, `fix:`, `test:`, `chore:`, `docs:`, `refactor:`, `ci:`).
+
 - Small, logical commits inside each phase; every commit must build.
 - One branch per phase (`phase-N-short-name`) and one pull request per phase, merged into `main`
   only when CI passes.
