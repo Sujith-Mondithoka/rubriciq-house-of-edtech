@@ -4,7 +4,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <>
       <header className="border-b">
-        <div className="mx-auto flex h-14 max-w-5xl items-center px-4">
+        <div className="mx-auto flex h-14 max-w-6xl items-center px-4">
           <Brand />
         </div>
       </header>

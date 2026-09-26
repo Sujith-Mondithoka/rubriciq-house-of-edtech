@@ -23,7 +23,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "drizzle-kit studio",
-    "ai:smoke": "tsx scripts/ai-smoke.ts"
+    "ai:smoke": "tsx scripts/ai-smoke.ts",
+    "screens": "playwright test -c playwright.screens.config.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.80",

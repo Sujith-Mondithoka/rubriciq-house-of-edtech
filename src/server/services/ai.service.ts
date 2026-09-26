@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm";
 
 import { AppError } from "@/lib/errors";
+import { aiGradeOutputSchema } from "@/server/ai/types";
 import type { DbOrTx } from "@/server/db/client";
 import { aiGradingRun, course, grade, submission } from "@/server/db/schema";
 
@@ -76,6 +77,22 @@ export async function getLatestRuns(db: DbOrTx, submissionIds: string[]) {
       desc(aiGradingRun.id),
     );
   return new Map(rows.map(({ submissionId, ...run }) => [submissionId, run]));
+}
+
+/**
+ * The level the AI suggested per criterion (from the newest successful run), so the grader can
+ * show "AI suggested X" next to the teacher's final choice even after an override.
+ */
+export async function getAiSuggestedLevels(db: DbOrTx, submissionId: string) {
+  const [run] = await db
+    .select({ rawOutput: aiGradingRun.rawOutput })
+    .from(aiGradingRun)
+    .where(and(eq(aiGradingRun.submissionId, submissionId), eq(aiGradingRun.status, "SUCCEEDED")))
+    .orderBy(desc(aiGradingRun.createdAt), desc(aiGradingRun.id))
+    .limit(1);
+  const parsed = aiGradeOutputSchema.safeParse(run?.rawOutput);
+  if (!parsed.success) return new Map<string, string>();
+  return new Map(parsed.data.criteria.map((c) => [c.criterionId, c.levelId]));
 }
 
 type StartInput = {

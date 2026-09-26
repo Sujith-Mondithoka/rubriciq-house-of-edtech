@@ -20,7 +20,7 @@ export function ReleaseGradesButton({ assignmentId, grades, action }: ReleaseGra
   return (
     <ConfirmDialog
       trigger={
-        <Button type="button" size="lg" disabled={!n}>
+        <Button type="button" size="lg" variant={n ? "default" : "outline"} disabled={!n}>
           Release {n} reviewed {noun}
         </Button>
       }

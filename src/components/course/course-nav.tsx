@@ -34,7 +34,7 @@ export function CourseNav({ courseId, showMembers, showAnalytics, showSettings }
                 className={cn(
                   "-mb-px inline-flex h-10 items-center border-b-2 px-3 text-sm font-medium outline-none focus-visible:rounded-md focus-visible:ring-3 focus-visible:ring-ring/50",
                   active
-                    ? "border-foreground text-foreground"
+                    ? "border-primary text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground",
                 )}
               >

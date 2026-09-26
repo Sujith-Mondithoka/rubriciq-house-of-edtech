@@ -1,30 +1,39 @@
 import { BotIcon, BotOffIcon } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-
 /** Tells students whether their work may be sent to an AI provider (CLAUDE.md AI rules). */
 export function AiNotice({ aiEnabled }: { aiEnabled: boolean }) {
+  const Icon = aiEnabled ? BotIcon : BotOffIcon;
   return (
-    <Alert>
-      {aiEnabled ? <BotIcon aria-hidden /> : <BotOffIcon aria-hidden />}
-      <AlertTitle>{aiEnabled ? "AI-assisted feedback" : "AI is off"}</AlertTitle>
-      <AlertDescription>
+    <aside
+      aria-label={aiEnabled ? "AI-assisted feedback" : "AI is off"}
+      className="flex gap-3 rounded-xl border bg-card p-4 text-sm"
+    >
+      <span
+        aria-hidden
+        className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground"
+      >
+        <Icon className="size-4" />
+      </span>
+      <div className="grid gap-1">
+        <p className="font-medium">{aiEnabled ? "AI-assisted feedback" : "AI is off"}</p>
         {aiEnabled ? (
           <>
-            <p>
+            <p className="text-muted-foreground">
               Submissions in this course may be sent to Google Gemini to draft feedback. A teacher
               reviews every grade.
             </p>
-            <p>
+            <p className="text-muted-foreground">
               This app uses Gemini&apos;s free tier, where Google may use submitted content to
               improve its products. Don&apos;t include personal information you would not want
               shared.
             </p>
           </>
         ) : (
-          "AI is turned off for this course. Submissions are never sent to an AI provider."
+          <p className="text-muted-foreground">
+            AI is turned off for this course. Submissions are never sent to an AI provider.
+          </p>
         )}
-      </AlertDescription>
-    </Alert>
+      </div>
+    </aside>
   );
 }

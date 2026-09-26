@@ -44,7 +44,7 @@ export default async function CourseOverviewPage({
   const canCreate = can(member, "assignment:create", { course: state });
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-8">
       {state.archived ? (
         <Alert>
           <AlertDescription>
@@ -61,7 +61,7 @@ export default async function CourseOverviewPage({
 
       <section aria-labelledby="assignments-heading" className="grid gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="assignments-heading" className="text-lg font-medium">
+          <h2 id="assignments-heading" className="section-title">
             Assignments
           </h2>
           {canCreate ? (
@@ -104,11 +104,11 @@ export default async function CourseOverviewPage({
       </section>
 
       {staff && counts ? (
-        <section aria-labelledby="people-heading" className="grid gap-4 rounded-xl border p-4">
-          <h2 id="people-heading" className="font-medium">
+        <section aria-labelledby="people-heading" className="card-surface grid gap-4 p-5">
+          <h2 id="people-heading" className="section-title">
             People
           </h2>
-          <dl className="grid grid-cols-3 gap-3 text-center">
+          <dl className="grid grid-cols-3 gap-3">
             {(
               [
                 ["Instructor", counts.INSTRUCTOR],
@@ -116,9 +116,9 @@ export default async function CourseOverviewPage({
                 ["Students", counts.STUDENT],
               ] as const
             ).map(([label, n]) => (
-              <div key={label} className="rounded-lg bg-muted/50 p-3">
+              <div key={label} className="grid gap-1 rounded-lg bg-muted/60 p-3">
                 <dt className="text-sm text-muted-foreground">{label}</dt>
-                <dd className="text-2xl font-semibold">{n}</dd>
+                <dd className="text-2xl font-semibold tabular-nums">{n}</dd>
               </div>
             ))}
           </dl>

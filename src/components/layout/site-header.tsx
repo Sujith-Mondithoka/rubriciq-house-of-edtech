@@ -7,8 +7,8 @@ import { Brand } from "./brand";
 /** Header for public pages. Static: it does not read the session. */
 export function SiteHeader() {
   return (
-    <header className="border-b">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
+    <header className="sticky top-0 z-30 border-b bg-card/85 backdrop-blur supports-[backdrop-filter]:bg-card/70">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
         <Brand />
         <nav aria-label="Account">
           <ul className="flex items-center gap-2">
