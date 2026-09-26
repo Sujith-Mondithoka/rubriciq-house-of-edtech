@@ -11,7 +11,7 @@ export default function GlobalError(props: {
 }) {
   return (
     <html lang="en">
-      <body className="mx-auto max-w-5xl px-4 py-16">
+      <body className="mx-auto max-w-6xl px-4 py-16">
         <RouteError {...props} />
       </body>
     </html>
