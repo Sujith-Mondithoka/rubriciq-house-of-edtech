@@ -100,6 +100,7 @@ test("instructor edits a draft and deletes it", async ({ page }) => {
   // Cancel keeps it; confirming deletes it.
   await page.getByRole("button", { name: "Delete draft" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("alertdialog")).toBeHidden();
   await expect(
     page.getByRole("heading", { level: 2, name: `Draft ${id} (renamed)` }),
   ).toBeVisible();
