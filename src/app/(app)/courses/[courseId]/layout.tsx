@@ -13,16 +13,16 @@ export default async function CourseLayout({
   const { course, member, state } = await loadCourseForMember(courseId);
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-8">
       <div className="grid gap-3">
         <Link
           href="/dashboard"
-          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+          className="w-fit text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
         >
           ← All courses
         </Link>
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight break-words">{course.name}</h1>
+          <h1 className="page-title break-words">{course.name}</h1>
           <RoleBadge role={member.role} />
           {state.archived ? <ArchivedBadge /> : null}
         </div>

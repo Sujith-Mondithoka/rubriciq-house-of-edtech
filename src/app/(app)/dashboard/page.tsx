@@ -1,12 +1,13 @@
-import { PlusIcon } from "lucide-react";
+import { ArchiveIcon, ArrowRightIcon, BookOpenIcon, PlusIcon, UsersIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { EmptyState } from "@/components/common/empty-state";
 import { JoinCourseForm } from "@/components/course/join-course-form";
 import { ArchivedBadge, RoleBadge } from "@/components/course/role-badge";
 import { PaginationNav } from "@/components/layout/pagination-nav";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { parsePage } from "@/lib/pagination";
 import { joinCourseAction } from "@/server/actions/course.actions";
 import { requireUser } from "@/server/auth/session";
@@ -36,10 +37,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     <div className="grid gap-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Welcome, {firstName}</h1>
+          <h1 className="page-title">Welcome, {firstName}</h1>
           <p className="text-muted-foreground">Signed in as {user.email}</p>
         </div>
-        <Button asChild variant="secondary" size="lg">
+        <Button asChild variant="outline" size="lg" className="bg-card">
           <Link href="/courses/new">
             <PlusIcon aria-hidden />
             Teaching? Create a course
@@ -47,91 +48,112 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </Button>
       </div>
 
-      <section aria-labelledby="join-heading" className="grid gap-3 rounded-xl border p-4">
-        <h2 id="join-heading" className="font-medium">
-          Join a course
-        </h2>
-        <JoinCourseForm action={joinCourseAction} />
-      </section>
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <section aria-labelledby="courses-heading" className="grid gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="courses-heading" className="section-title">
+              Your courses
+            </h2>
+            <nav aria-label="Course list filter">
+              <ul className="flex gap-1 rounded-lg bg-muted p-1">
+                {TABS.map(({ view, label }) => {
+                  const active = (view === "archived") === archived;
+                  return (
+                    <li key={view}>
+                      <Link
+                        href={view === "archived" ? "/dashboard?view=archived" : "/dashboard"}
+                        aria-current={active ? "page" : undefined}
+                        className={
+                          active
+                            ? "inline-flex h-8 items-center rounded-md bg-card px-3 text-sm font-medium shadow-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                            : "inline-flex h-8 items-center rounded-md px-3 text-sm text-foreground/75 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                        }
+                      >
+                        {label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          </div>
 
-      <section aria-labelledby="courses-heading" className="grid gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="courses-heading" className="text-lg font-medium">
-            Your courses
-          </h2>
-          <nav aria-label="Course list filter">
-            <ul className="flex gap-1 rounded-lg bg-muted p-1">
-              {TABS.map(({ view, label }) => {
-                const active = (view === "archived") === archived;
-                return (
-                  <li key={view}>
-                    <Link
-                      href={view === "archived" ? "/dashboard?view=archived" : "/dashboard"}
-                      aria-current={active ? "page" : undefined}
-                      className={
-                        active
-                          ? "inline-flex h-8 items-center rounded-md bg-background px-3 text-sm font-medium shadow-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                          : "inline-flex h-8 items-center rounded-md px-3 text-sm text-foreground/75 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-                      }
-                    >
-                      {label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-        </div>
-
-        {courses.items.length === 0 ? (
-          <div className="rounded-xl border border-dashed p-8 text-center">
-            <p className="font-medium">
-              {archived ? "No archived courses" : "You are not in any courses yet"}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
+          {courses.items.length === 0 ? (
+            <EmptyState
+              icon={archived ? ArchiveIcon : BookOpenIcon}
+              title={archived ? "No archived courses" : "You are not in any courses yet"}
+            >
               {archived
                 ? "Courses you archive, or that your instructor archives, appear here."
-                : "Create a course to teach, or enter a join code above to join one."}
-            </p>
-          </div>
-        ) : (
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {courses.items.map((c) => (
-              <li key={c.id}>
-                <Card className="relative h-full transition-colors focus-within:ring-2 focus-within:ring-ring hover:bg-muted/40">
-                  <CardHeader>
-                    <CardTitle className="flex flex-wrap items-center gap-2">
-                      <Link
-                        href={`/courses/${c.id}`}
-                        className="outline-none after:absolute after:inset-0 hover:underline"
+                : "Create a course to teach, or enter a join code to join one."}
+            </EmptyState>
+          ) : (
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {courses.items.map((c) => (
+                <li key={c.id}>
+                  <div className="card-surface group relative flex h-full flex-col gap-3 p-4 transition-colors focus-within:ring-3 focus-within:ring-ring/50 hover:border-primary/40">
+                    <div className="flex items-start gap-3">
+                      <span
+                        aria-hidden
+                        className="grid size-10 shrink-0 place-items-center rounded-lg bg-accent text-base font-semibold text-accent-foreground"
                       >
-                        {c.name}
-                      </Link>
-                    </CardTitle>
-                    <CardDescription className="line-clamp-2 whitespace-pre-wrap">
-                      {c.description || "No description"}
-                    </CardDescription>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                        {c.name.trim()[0]?.toUpperCase() ?? "C"}
+                      </span>
+                      <div className="grid min-w-0 gap-1">
+                        <h3 className="font-semibold break-words">
+                          <Link
+                            href={`/courses/${c.id}`}
+                            className="outline-none group-hover:underline after:absolute after:inset-0"
+                          >
+                            {c.name}
+                          </Link>
+                        </h3>
+                        <p className="line-clamp-2 text-sm whitespace-pre-wrap text-muted-foreground">
+                          {c.description || "No description"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-auto flex flex-wrap items-center gap-2 border-t pt-3 text-sm text-muted-foreground">
                       <RoleBadge role={c.role} />
                       {c.archivedAt ? <ArchivedBadge /> : null}
-                      <span>
+                      <span className="inline-flex items-center gap-1">
+                        <UsersIcon aria-hidden className="size-3.5" />
                         {c.memberCount} {c.memberCount === 1 ? "member" : "members"}
                       </span>
+                      <ArrowRightIcon
+                        aria-hidden
+                        className="ml-auto size-4 transition-transform group-hover:translate-x-0.5"
+                      />
                     </div>
-                  </CardHeader>
-                </Card>
-              </li>
-            ))}
-          </ul>
-        )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
 
-        <PaginationNav
-          page={courses.page}
-          hasMore={courses.hasMore}
-          hrefFor={hrefFor}
-          label="Course pages"
-        />
-      </section>
+          <PaginationNav
+            page={courses.page}
+            hasMore={courses.hasMore}
+            hrefFor={hrefFor}
+            label="Course pages"
+          />
+        </section>
+
+        <section
+          aria-labelledby="join-heading"
+          className="card-surface grid gap-3 p-5 lg:sticky lg:top-20"
+        >
+          <div className="grid gap-1">
+            <h2 id="join-heading" className="font-semibold">
+              Join a course
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Students: enter the code your teacher shared.
+            </p>
+          </div>
+          <JoinCourseForm action={joinCourseAction} />
+        </section>
+      </div>
     </div>
   );
 }
