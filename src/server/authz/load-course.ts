@@ -5,10 +5,12 @@ import { cache } from "react";
 
 import { assignmentIdSchema } from "@/lib/validation/assignment.schema";
 import { courseIdSchema } from "@/lib/validation/course.schema";
+import { submissionIdSchema } from "@/lib/validation/grade.schema";
 import { requireUser } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { getAssignmentAccess } from "@/server/services/assignment.service";
 import { courseState, getCourseAccess } from "@/server/services/course.service";
+import { getSubmissionAccess } from "@/server/services/submission.service";
 
 import { can, type Member } from "./policy";
 
@@ -46,3 +48,26 @@ export const loadAssignmentForMember = cache(async (courseId: string, assignment
   }
   return { ...ctx, assignment: access.assignment };
 });
+
+/**
+ * For the grading pages: staff only. The submission must belong to the assignment in the URL;
+ * anyone else (students included) gets the same 404.
+ */
+export const loadAssignmentForGrading = cache(async (courseId: string, assignmentId: string) => {
+  const ctx = await loadAssignmentForMember(courseId, assignmentId);
+  if (!can(ctx.member, "submission:viewAll", { course: ctx.state })) notFound();
+  return ctx;
+});
+
+export const loadSubmissionForGrading = cache(
+  async (courseId: string, assignmentId: string, submissionId: string) => {
+    const ctx = await loadAssignmentForGrading(courseId, assignmentId);
+    const id = submissionIdSchema.safeParse(submissionId);
+    if (!id.success) notFound();
+    const access = await getSubmissionAccess(db, id.data, ctx.user.id);
+    if (!access || access.assignment.id !== ctx.assignment.id) notFound();
+    // Unsubmitted drafts are the student's work in progress, not something to grade.
+    if (access.submission.status !== "SUBMITTED") notFound();
+    return { ...ctx, submission: access.submission };
+  },
+);
