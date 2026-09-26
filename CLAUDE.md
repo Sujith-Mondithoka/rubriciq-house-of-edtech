@@ -99,6 +99,9 @@ tests/{unit,integration,e2e,fixtures}
 - Resolve the course from the resource (submission → assignment → course), never from a
   client-sent courseId.
 - `proxy.ts` only redirects signed-out users; real authorization happens in actions and data reads.
+- Auth config lives in `createAuth()` (`src/server/auth/create-auth.ts`, testable); pages and
+  actions use `requireUser()` / `getCurrentUser()`. Email sign-in/up go through the Better Auth
+  HTTP handler (rate-limited), not Server Actions.
 - No raw SQL string building. No `dangerouslySetInnerHTML`; user text renders as plain text.
 - Security headers + CSP in `next.config`. Rate-limit sign-in, sign-up and AI actions.
 - Env vars are validated with Zod at startup; secrets are never committed (`.env.example` only).

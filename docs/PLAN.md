@@ -315,3 +315,5 @@ releases moves into Phase 7 if Phase 9 is cut.
 10. Polling for AI status instead of SSE.
 11. E2E uses the mock AI only; the real Gemini call needs a manual smoke test before release.
 12. Scope is large for a one-day deadline; rely on the cut order.
+13. Demo sign-in runs in a Server Action, which bypasses Better Auth's HTTP rate limiter; repeated
+    clicks can create many demo sessions. Covered by the Phase 11 rate limit on actions.
