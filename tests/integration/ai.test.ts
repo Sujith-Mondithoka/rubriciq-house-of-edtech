@@ -21,7 +21,12 @@ import { processRun, processRuns, type RunDeps } from "@/server/ai/grade-submiss
 import { createMockProvider } from "@/server/ai/mock-provider";
 import type { AiProvider } from "@/server/ai/types";
 import { aiGradingRun, auditLog, course, criterionScore, grade } from "@/server/db/schema";
-import { getLatestRuns, STALE_AFTER_MS, sweepStaleRuns } from "@/server/services/ai.service";
+import {
+  getAiSuggestedLevels,
+  getLatestRuns,
+  STALE_AFTER_MS,
+  sweepStaleRuns,
+} from "@/server/services/ai.service";
 import { getRubric } from "@/server/services/assignment.service";
 import { getGradeForStaff, listGradingQueue } from "@/server/services/grade.service";
 
@@ -365,6 +370,36 @@ describe("processing runs", () => {
     const g = await getGradeForStaff(db, s.samSub.id);
     expect(g).toMatchObject({ overallFeedback: "Human wins", gradedBy: s.tara.id, version: 1 });
     expect(g!.scores).toHaveLength(0);
+  });
+
+  it("remembers the AI's suggested level after a person overrides it", async () => {
+    const s = await setup();
+    const { runIds } = unwrap(
+      await generate(ctx(s.alice), { assignmentId: s.assignmentId, submissionIds: [s.samSub.id] }),
+    );
+    await processRun(deps(), runIds[0]!);
+    const draft = (await getGradeForStaff(db, s.samSub.id))!;
+    const suggestedBefore = await getAiSuggestedLevels(db, s.samSub.id);
+    expect([...suggestedBefore.values()].sort()).toEqual(
+      draft.scores.map((sc) => sc.levelId).sort(),
+    );
+
+    // Override the first criterion with a different level.
+    const [criterion] = await getRubric(db, s.assignmentId);
+    const other = criterion!.levels.find((l) => l.id !== suggestedBefore.get(criterion!.id))!;
+    unwrap(
+      await saveGradeHandler(ctx(s.alice), {
+        submissionId: s.samSub.id,
+        version: draft.version,
+        overallFeedback: "",
+        scores: [{ criterionId: criterion!.id, levelId: other.id, feedback: "" }],
+      }),
+    );
+    const suggestedAfter = await getAiSuggestedLevels(db, s.samSub.id);
+    expect(suggestedAfter.get(criterion!.id)).toBe(suggestedBefore.get(criterion!.id));
+    expect(suggestedAfter.get(criterion!.id)).not.toBe(other.id);
+    // No successful run: nothing suggested.
+    expect((await getAiSuggestedLevels(db, s.sueSub.id)).size).toBe(0);
   });
 
   it("accepting an AI draft keeps the AI source and makes it releasable", async () => {

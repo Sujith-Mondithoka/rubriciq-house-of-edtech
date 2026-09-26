@@ -20,7 +20,7 @@ import { aiConfig } from "@/server/ai/provider";
 import { loadSubmissionForGrading } from "@/server/authz/load-course";
 import { can } from "@/server/authz/policy";
 import { db } from "@/server/db";
-import { getLatestRuns, sweepStaleRuns } from "@/server/services/ai.service";
+import { getAiSuggestedLevels, getLatestRuns, sweepStaleRuns } from "@/server/services/ai.service";
 import { getRubric } from "@/server/services/assignment.service";
 import { getGradeForStaff } from "@/server/services/grade.service";
 import { getGradeHistory, getRegradeForSubmission } from "@/server/services/regrade.service";
@@ -35,6 +35,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { courseId, assignmentId, submissionId } = await params;
   const { assignment } = await loadSubmissionForGrading(courseId, assignmentId, submissionId);
   return { title: `Grade: ${assignment.title}` };
+}
+
+function initials(name: string) {
+  const parts = name
+    .replace(/\(.*?\)/g, "")
+    .trim()
+    .split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
 }
 
 export default async function GraderPage({ params }: Props) {
@@ -53,6 +61,9 @@ export default async function GraderPage({ params }: Props) {
     getLatestRuns(db, [submission.id]),
   ]);
   const run = runs.get(submission.id);
+  const suggested = grade
+    ? await getAiSuggestedLevels(db, submission.id)
+    : new Map<string, string>();
   const regrade = grade ? await getRegradeForSubmission(db, submission.id) : null;
   const history = grade ? await getGradeHistory(db, grade.id, regrade?.id ?? null) : [];
   const canResolve = regrade !== null && can(member, "regrade:resolve", { course: state, regrade });
@@ -78,57 +89,69 @@ export default async function GraderPage({ params }: Props) {
 
   return (
     <div className="grid gap-6">
-      <header className="grid gap-2">
+      <header className="grid gap-3">
         <Link
           href={queueHref}
-          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+          className="w-fit text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
         >
           ← Grading queue
         </Link>
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-xl font-semibold break-words">{studentName ?? "Student"}</h2>
-          <QueueStatusBadge status={status} />
+        <div className="flex flex-wrap items-center gap-3">
+          <span
+            aria-hidden
+            className="grid size-10 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-foreground"
+          >
+            {initials(studentName ?? "Student")}
+          </span>
+          <div className="grid gap-0.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="page-title break-words">{studentName ?? "Student"}</h2>
+              <QueueStatusBadge status={status} />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {assignment.title} ·{" "}
+              {submission.submittedAt ? (
+                <>
+                  {submission.isLate ? "Submitted late" : "Submitted"}{" "}
+                  <LocalDateTime iso={submission.submittedAt.toISOString()} />
+                </>
+              ) : null}{" "}
+              · {submission.wordCount} words
+            </p>
+          </div>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {assignment.title} ·{" "}
-          {submission.submittedAt ? (
-            <>
-              {submission.isLate ? "Submitted late" : "Submitted"}{" "}
-              <LocalDateTime iso={submission.submittedAt.toISOString()} />
-            </>
-          ) : null}{" "}
-          · {submission.wordCount} words
-        </p>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
         <section
           aria-labelledby="student-work-heading"
-          className="grid gap-2 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto"
+          // Scrollable on large screens, so it must be reachable with the keyboard.
+          tabIndex={0}
+          className="card-surface grid gap-0 overflow-hidden outline-none focus-visible:ring-3 focus-visible:ring-ring/50 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto"
         >
-          <h3 id="student-work-heading" className="font-medium">
-            Student&apos;s answer
-          </h3>
-          <div className="rounded-xl border p-4 font-serif leading-relaxed break-words whitespace-pre-wrap">
+          <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-card/95 px-5 py-3 backdrop-blur">
+            <h3 id="student-work-heading" className="font-semibold">
+              Student&apos;s answer
+            </h3>
+            {evidence?.length ? (
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span
+                  aria-hidden
+                  className="inline-block h-3 w-4 rounded-[3px] border-b-2 border-primary/60 bg-[var(--highlight)]"
+                />
+                Highlighted: passages the AI quoted as evidence.
+              </p>
+            ) : null}
+          </div>
+          <div className="px-5 py-4 font-serif text-[15px] leading-7 break-words whitespace-pre-wrap">
             {highlightSegments(submission.content, evidence ?? []).map((segment, i) =>
-              segment.highlighted ? (
-                <mark key={i} className="rounded-sm bg-amber-200/70 px-0.5 dark:bg-amber-500/30">
-                  {segment.text}
-                </mark>
-              ) : (
-                segment.text
-              ),
+              segment.highlighted ? <mark key={i}>{segment.text}</mark> : segment.text,
             )}
           </div>
-          {evidence?.length ? (
-            <p className="text-sm text-muted-foreground">
-              Highlighted: passages the AI quoted as evidence.
-            </p>
-          ) : null}
         </section>
 
-        <section aria-labelledby="grade-heading" className="grid gap-3">
-          <h3 id="grade-heading" className="font-medium">
+        <section aria-labelledby="grade-heading" className="grid gap-4">
+          <h3 id="grade-heading" className="section-title">
             Grade
           </h3>
 
@@ -208,8 +231,6 @@ export default async function GraderPage({ params }: Props) {
             </>
           ) : canSave ? (
             <GraderPanel
-              // A new version (e.g. an AI draft arriving) remounts the form with fresh values.
-              key={grade?.version ?? 0}
               submissionId={submission.id}
               assignmentId={assignment.id}
               criteria={criteria}
@@ -229,6 +250,7 @@ export default async function GraderPage({ params }: Props) {
                   },
                 })),
               }}
+              suggested={Object.fromEntries(suggested)}
               canRelease={canRelease}
               saveAction={saveGradeAction}
               releaseAction={releaseGradesAction}
